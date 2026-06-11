@@ -17,6 +17,8 @@ import ExchangeRateScreen from '../screens/search/ExchangeRateScreen';
 import MessagesScreen from '../screens/messages/MessagesScreen';
 import MessageDetailScreen from '../screens/messages/MessageDetailScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import ChangePasswordScreen from '../screens/settings/ChangePasswordScreen';
+import BiometricScreen from '../screens/settings/BiometricScreen';
 
 // Feature screens
 import TransferScreen from '../screens/transfer/TransferScreen';
@@ -77,7 +79,7 @@ const AppNavigator = () => (
       {/* Main App */}
       <Stack.Screen name="MainTabs" component={MainTabs} />
 
-      {/* Feature screens (full screen, pushed on top of tabs) */}
+      {/* Feature screens */}
       <Stack.Screen name="Transfer" component={TransferScreen} />
       <Stack.Screen name="Bills" component={BillsScreen} />
       <Stack.Screen name="Withdraw" component={WithdrawScreen} />
@@ -87,6 +89,10 @@ const AppNavigator = () => (
       <Stack.Screen name="TransactionReport" component={TransactionReportScreen} />
       <Stack.Screen name="ExchangeRate" component={ExchangeRateScreen} />
       <Stack.Screen name="MessageDetail" component={MessageDetailScreen} />
+
+      {/* Settings sub-screens */}
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="Biometric" component={BiometricScreen} />
 
       {/* Placeholder screens */}
       <Stack.Screen name="Prepaid" component={WithdrawScreen} />

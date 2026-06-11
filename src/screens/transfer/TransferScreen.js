@@ -1,0 +1,163 @@
+import React, {useState} from 'react';
+import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {Button, Input, ScreenWrapper, Avatar} from '../../components/common';
+import {mockCards, mockBeneficiaries} from '../../store/data';
+import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
+
+const fmt = n => new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(Math.abs(n));
+
+const TX_TYPES = [
+  {id: 'card', label: 'Transfer via\ncard number', icon: '💳'},
+  {id: 'same', label: 'Transfer to\nsame bank', icon: '🏦'},
+  {id: 'other', label: 'Transfer to\nanother bank', icon: '🔄'},
+];
+
+const TransferScreen = ({navigation}) => {
+  const [step, setStep] = useState(1);
+  const [selectedCard, setSelectedCard] = useState(mockCards[0]);
+  const [txType, setTxType] = useState('card');
+  const [beneficiary, setBeneficiary] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [otp, setOtp] = useState('');
+  const [done, setDone] = useState(false);
+
+  if (done) {
+    return (
+      <ScreenWrapper title="Confirm" onBack={() => navigation.goBack()}>
+        <View style={styles.successContainer}>
+          <Text style={styles.successEmoji}>🎉</Text>
+          <Text style={styles.successTitle}>Transfer successful!</Text>
+          <Text style={styles.successDesc}>
+            You have successfully transferred{' '}
+            <Text style={{fontWeight: fontWeight.bold, color: colors.primary}}>{fmt(parseFloat(amount) || 0)}</Text>{' '}
+            to <Text style={{fontWeight: fontWeight.bold}}>{beneficiary?.name || 'recipient'}!</Text>
+          </Text>
+          <Button label="Confirm" onPress={() => navigation.goBack()} />
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  return (
+    <ScreenWrapper
+      title={step === 1 ? 'Transfer' : 'Confirm'}
+      onBack={() => (step > 1 ? setStep(1) : navigation.goBack())}>
+
+      {step === 1 && (
+        <View>
+          {/* Card selector */}
+          <Text style={styles.sectionLabel}>Choose account / card</Text>
+          {mockCards.map(c => (
+            <TouchableOpacity
+              key={c.id}
+              onPress={() => setSelectedCard(c)}
+              style={[styles.cardOption, selectedCard.id === c.id && styles.cardOptionSelected]}>
+              <Text style={styles.cardOptionNum}>VISA •••• •••• {c.last4}</Text>
+              <Text style={styles.cardOptionBal}>Available balance: {fmt(c.balance)}</Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* TX Type */}
+          <Text style={[styles.sectionLabel, {marginTop: spacing.md}]}>Choose transaction</Text>
+          <View style={styles.txTypeRow}>
+            {TX_TYPES.map(t => (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => setTxType(t.id)}
+                style={[styles.txTypeItem, txType === t.id && styles.txTypeItemSelected]}>
+                <Text style={styles.txTypeIcon}>{t.icon}</Text>
+                <Text style={styles.txTypeLabel}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Beneficiary */}
+          <View style={styles.benRow}>
+            <Text style={styles.sectionLabel}>Choose beneficiary</Text>
+            <TouchableOpacity><Text style={styles.findLink}>Find beneficiary</Text></TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.benScroll}>
+            {mockBeneficiaries.map(b => (
+              <TouchableOpacity key={b.id} onPress={() => setBeneficiary(b)} style={styles.benItem}>
+                <Avatar
+                  name={b.name}
+                  size={46}
+                  style={beneficiary?.id === b.id ? styles.benAvatarSelected : undefined}
+                />
+                <Text style={styles.benName}>{b.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Input label="Name" placeholder="Beneficiary name" value={beneficiary?.name || ''} onChangeText={() => {}} editable={false} />
+          <Input label="Card number" placeholder="Card number" value={beneficiary?.number || ''} onChangeText={() => {}} editable={false} />
+          <Input label="Amount" placeholder="Amount" value={amount} onChangeText={setAmount} keyboardType="numeric" />
+          <Input label="Note" placeholder="Note / Content" value={note} onChangeText={setNote} />
+          <Button label="Confirm" onPress={() => setStep(2)} disabled={!beneficiary || !amount} />
+        </View>
+      )}
+
+      {step === 2 && (
+        <View>
+          <Text style={styles.sectionLabel}>Confirm transaction information</Text>
+          {[
+            ['From', `•••• •••• ${selectedCard.last4}`],
+            ['To', beneficiary?.name || ''],
+            ['Card number', beneficiary?.number || ''],
+            ['Transaction fee', '$10'],
+            ['Content', note || 'From Jimy'],
+            ['Amount', fmt(parseFloat(amount) || 0)],
+          ].map(([k, v]) => (
+            <View key={k} style={styles.confirmRow}>
+              <Text style={styles.confirmKey}>{k}</Text>
+              <View style={styles.confirmVal}>
+                <Text style={styles.confirmValText}>{v}</Text>
+              </View>
+            </View>
+          ))}
+
+          <Text style={[styles.sectionLabel, {marginTop: spacing.md}]}>Get OTP to verify transaction</Text>
+          <View style={styles.otpRow}>
+            <Input placeholder="OTP" value={otp} onChangeText={setOtp} style={styles.otpInput} keyboardType="number-pad" />
+            <Button label="Get OTP" variant="outline" onPress={() => setOtp('6789')} style={styles.otpBtn} />
+          </View>
+
+          <Button label="Confirm" onPress={() => setDone(true)} disabled={!otp} />
+        </View>
+      )}
+    </ScreenWrapper>
+  );
+};
+
+const styles = StyleSheet.create({
+  sectionLabel: {fontSize: fontSize.sm, fontWeight: fontWeight.semiBold, color: colors.textSecondary, marginBottom: spacing.sm},
+  cardOption: {padding: spacing.md, borderRadius: borderRadius.md, borderWidth: 2, borderColor: colors.border, marginBottom: spacing.sm, backgroundColor: colors.surface},
+  cardOptionSelected: {borderColor: colors.primary, backgroundColor: `${colors.primary}10`},
+  cardOptionNum: {fontSize: fontSize.sm, fontWeight: fontWeight.semiBold, color: colors.text},
+  cardOptionBal: {fontSize: fontSize.sm, color: colors.success, fontWeight: fontWeight.semiBold},
+  txTypeRow: {flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md},
+  txTypeItem: {flex: 1, alignItems: 'center', padding: spacing.sm, borderRadius: borderRadius.md, borderWidth: 2, borderColor: colors.border, gap: spacing.xs},
+  txTypeItemSelected: {borderColor: colors.warning, backgroundColor: `${colors.warning}15`},
+  txTypeIcon: {fontSize: 22},
+  txTypeLabel: {fontSize: fontSize.xs, color: colors.textSecondary, textAlign: 'center'},
+  benRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm},
+  findLink: {fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semiBold},
+  benScroll: {marginBottom: spacing.md},
+  benItem: {alignItems: 'center', marginRight: spacing.lg, gap: spacing.xs},
+  benAvatarSelected: {borderWidth: 3, borderColor: colors.primaryDark},
+  benName: {fontSize: fontSize.xs, color: colors.textSecondary},
+  confirmRow: {marginBottom: spacing.sm},
+  confirmKey: {fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4},
+  confirmVal: {backgroundColor: '#F9FAFB', borderRadius: borderRadius.sm, padding: spacing.md},
+  confirmValText: {fontSize: fontSize.base, fontWeight: fontWeight.semiBold, color: colors.text},
+  otpRow: {flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start', marginBottom: spacing.md},
+  otpInput: {flex: 1},
+  otpBtn: {width: 'auto', paddingHorizontal: spacing.md},
+  successContainer: {flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing['2xl']},
+  successEmoji: {fontSize: 72, marginBottom: spacing.lg},
+  successTitle: {fontSize: fontSize.xl, fontWeight: fontWeight.extraBold, color: colors.primary, marginBottom: spacing.sm},
+  successDesc: {fontSize: fontSize.base, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 22},
+});
+
+export default TransferScreen;

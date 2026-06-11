@@ -19,6 +19,7 @@ import MessageDetailScreen from '../screens/messages/MessageDetailScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import ChangePasswordScreen from '../screens/settings/ChangePasswordScreen';
 import BiometricScreen from '../screens/settings/BiometricScreen';
+import EditProfileScreen from '../screens/settings/EditProfileScreen';
 
 // Feature screens
 import TransferScreen from '../screens/transfer/TransferScreen';
@@ -93,7 +94,7 @@ const AppNavigator = () => (
       {/* Settings sub-screens */}
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <Stack.Screen name="Biometric" component={BiometricScreen} />
-
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       {/* Placeholder screens */}
       <Stack.Screen name="Prepaid" component={WithdrawScreen} />
       <Stack.Screen name="CreditCard" component={BillsScreen} />

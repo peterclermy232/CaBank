@@ -107,7 +107,7 @@ const SettingsScreen = ({navigation}) => {
           <Text style={styles.profileName}>{mockUser.name}</Text>
           <Text style={styles.profileEmail}>{mockUser.email}</Text>
         </View>
-        <TouchableOpacity style={styles.editBtn} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.editBtn} activeOpacity={0.7} onPress={() => navigation.navigate('EditProfile')}>
           <Text style={styles.editText}>Edit</Text>
         </TouchableOpacity>
       </View>

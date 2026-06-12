@@ -7,16 +7,29 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  Alert,
 } from 'react-native';
 import {Button, Input} from '../../components/common';
+import {useAuth} from '../../context/AuthContext';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
 
 const SignInScreen = ({navigation}) => {
+  const {signIn} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
-    navigation.replace('MainTabs');
+  const handleSignIn = async () => {
+    if (!email || !password) return;
+    setLoading(true);
+    try {
+      await signIn(email, password);
+      navigation.replace('MainTabs');
+    } catch (err) {
+      Alert.alert('Sign in failed', err.message || 'Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,12 +41,16 @@ const SignInScreen = ({navigation}) => {
         <Text style={styles.subtitle}>Hello there, sign in to continue</Text>
       </View>
 
-      <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        showsVerticalScrollIndicator={false}>
         <Input
           placeholder="Email or Username"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
         />
         <Input
           placeholder="Password"
@@ -41,11 +58,17 @@ const SignInScreen = ({navigation}) => {
           onChangeText={setPassword}
           secureTextEntry
         />
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotWrap}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ForgotPassword')}
+          style={styles.forgotWrap}>
           <Text style={styles.forgot}>Forgot your password?</Text>
         </TouchableOpacity>
 
-        <Button label="Sign In" onPress={handleSignIn} />
+        <Button
+          label={loading ? 'Signing in…' : 'Sign In'}
+          onPress={handleSignIn}
+          disabled={loading || !email || !password}
+        />
 
         <View style={styles.dividerRow}>
           <View style={styles.divider} />
@@ -76,7 +99,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emoji: {fontSize: 52, marginBottom: spacing.sm},
-  welcome: {fontSize: fontSize['3xl'], fontWeight: fontWeight.extraBold, color: '#fff', marginBottom: 6},
+  welcome: {
+    fontSize: fontSize['3xl'],
+    fontWeight: fontWeight.extraBold,
+    color: '#fff',
+    marginBottom: 6,
+  },
   subtitle: {fontSize: fontSize.sm, color: 'rgba(255,255,255,0.7)'},
   body: {
     flex: 1,
@@ -86,14 +114,34 @@ const styles = StyleSheet.create({
   },
   bodyContent: {padding: spacing.lg, paddingBottom: spacing['2xl']},
   forgotWrap: {alignItems: 'flex-end', marginBottom: spacing.lg},
-  forgot: {fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semiBold},
-  dividerRow: {flexDirection: 'row', alignItems: 'center', marginVertical: spacing.lg},
+  forgot: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.semiBold,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
   divider: {flex: 1, height: 1, backgroundColor: colors.border},
-  dividerText: {marginHorizontal: spacing.md, fontSize: fontSize.sm, color: colors.textMuted},
+  dividerText: {
+    marginHorizontal: spacing.md,
+    fontSize: fontSize.sm,
+    color: colors.textMuted,
+  },
   biometric: {fontSize: 52, textAlign: 'center', marginBottom: spacing.md},
-  signupRow: {flexDirection: 'row', justifyContent: 'center', marginTop: spacing.md},
+  signupRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
   signupText: {fontSize: fontSize.sm, color: colors.textSecondary},
-  signupLink: {fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.bold},
+  signupLink: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+  },
 });
 
 export default SignInScreen;

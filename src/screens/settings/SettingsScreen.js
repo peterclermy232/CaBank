@@ -8,7 +8,7 @@ import {
   Switch,
 } from 'react-native';
 import {ScreenWrapper, Avatar, Button} from '../../components/common';
-import {mockUser} from '../../store/data';
+import {useAuth} from '../../context/AuthContext';
 import {colors, spacing, fontSize, fontWeight, borderRadius, shadows} from '../../theme';
 
 const MENU_SECTIONS = [
@@ -83,6 +83,7 @@ const MENU_SECTIONS = [
 ];
 
 const SettingsScreen = ({navigation}) => {
+  const {user, signOut} = useAuth();
   const [twofa, setTwofa] = useState(false);
 
   const handlePress = item => {
@@ -94,7 +95,14 @@ const SettingsScreen = ({navigation}) => {
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       {text: 'Cancel', style: 'cancel'},
-      {text: 'Sign out', style: 'destructive', onPress: () => navigation.replace('Auth')},
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut();
+          navigation.replace('Auth');
+        },
+      },
     ]);
   };
 
@@ -102,12 +110,15 @@ const SettingsScreen = ({navigation}) => {
     <ScreenWrapper title="Settings">
       {/* Profile card */}
       <View style={styles.profileCard}>
-        <Avatar name={mockUser.name} size={60} />
+        <Avatar name={user?.name ?? ''} size={60} />
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{mockUser.name}</Text>
-          <Text style={styles.profileEmail}>{mockUser.email}</Text>
+          <Text style={styles.profileName}>{user?.name ?? ''}</Text>
+          <Text style={styles.profileEmail}>{user?.email ?? ''}</Text>
         </View>
-        <TouchableOpacity style={styles.editBtn} activeOpacity={0.7} onPress={() => navigation.navigate('EditProfile')}>
+        <TouchableOpacity
+          style={styles.editBtn}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('EditProfile')}>
           <Text style={styles.editText}>Edit</Text>
         </TouchableOpacity>
       </View>
@@ -115,7 +126,9 @@ const SettingsScreen = ({navigation}) => {
       {/* Security badge */}
       <View style={styles.securityBadge}>
         <Text style={styles.securityBadgeIcon}>✅</Text>
-        <Text style={styles.securityBadgeText}>Account secured · 2 active sessions</Text>
+        <Text style={styles.securityBadgeText}>
+          Account secured · 2 active sessions
+        </Text>
       </View>
 
       {/* Menu sections */}
@@ -132,13 +145,14 @@ const SettingsScreen = ({navigation}) => {
                 ]}
                 activeOpacity={item.screen || item.toggle ? 0.7 : 1}
                 onPress={() => !item.toggle && handlePress(item)}>
-
                 <View style={styles.menuIconWrap}>
                   <Text style={styles.menuIcon}>{item.icon}</Text>
                 </View>
                 <View style={styles.menuTextWrap}>
                   <Text style={styles.menuLabel}>{item.label}</Text>
-                  {item.sub ? <Text style={styles.menuSub}>{item.sub}</Text> : null}
+                  {item.sub ? (
+                    <Text style={styles.menuSub}>{item.sub}</Text>
+                  ) : null}
                 </View>
 
                 {item.toggle ? (
@@ -196,8 +210,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
   },
-  editText: {fontSize: fontSize.sm, color: '#fff', fontWeight: fontWeight.semiBold},
-
+  editText: {
+    fontSize: fontSize.sm,
+    color: '#fff',
+    fontWeight: fontWeight.semiBold,
+  },
   securityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -215,7 +232,6 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontWeight: fontWeight.semiBold,
   },
-
   sectionWrapper: {marginBottom: spacing.lg},
   sectionTitle: {
     fontSize: fontSize.xs,
@@ -255,10 +271,13 @@ const styles = StyleSheet.create({
   },
   menuIcon: {fontSize: 18},
   menuTextWrap: {flex: 1},
-  menuLabel: {fontSize: fontSize.base, color: colors.text, fontWeight: fontWeight.semiBold},
+  menuLabel: {
+    fontSize: fontSize.base,
+    color: colors.text,
+    fontWeight: fontWeight.semiBold,
+  },
   menuSub: {fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2},
   chevron: {fontSize: 22, color: colors.textMuted},
-
   signOutBtn: {marginTop: spacing.sm},
   footerNote: {
     textAlign: 'center',

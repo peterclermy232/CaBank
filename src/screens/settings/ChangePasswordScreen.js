@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import {Button, Input, ScreenWrapper} from '../../components/common';
+import {authApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
 
 const RULES = [
@@ -29,11 +30,18 @@ const StrengthBar = ({password}) => {
         {[1, 2, 3, 4].map(i => (
           <View
             key={i}
-            style={[styles.strengthSegment, {backgroundColor: score >= i ? colors_[score] : colors_[0]}]}
+            style={[
+              styles.strengthSegment,
+              {backgroundColor: score >= i ? colors_[score] : colors_[0]},
+            ]}
           />
         ))}
       </View>
-      {score > 0 && <Text style={[styles.strengthLabel, {color: colors_[score]}]}>{labels[score]}</Text>}
+      {score > 0 && (
+        <Text style={[styles.strengthLabel, {color: colors_[score]}]}>
+          {labels[score]}
+        </Text>
+      )}
     </View>
   );
 };
@@ -43,19 +51,30 @@ const ChangePasswordScreen = ({navigation}) => {
   const [newPass, setNewPass] = useState('');
   const [confirm, setConfirm] = useState('');
   const [done, setDone] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [currentError, setCurrentError] = useState('');
 
   const allRulesPassed = RULES.every(r => r.test(newPass));
   const matchError = confirm.length > 0 && newPass !== confirm;
-  const canSubmit = current.length >= 4 && allRulesPassed && newPass === confirm && !matchError;
+  const canSubmit =
+    current.length >= 1 && allRulesPassed && newPass === confirm && !matchError && !loading;
 
-  const handleSubmit = () => {
-    if (current !== '1234') {
-      setCurrentError('Incorrect current password');
-      return;
-    }
+  // ── Real API call ─────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    setLoading(true);
     setCurrentError('');
-    setDone(true);
+    try {
+      await authApi.changePassword({
+        currentPassword: current,
+        newPassword: newPass,
+      });
+      setDone(true);
+    } catch (err) {
+      // Backend returns 400 with message "Current password is incorrect"
+      setCurrentError(err.message || 'Incorrect current password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (done) {
@@ -67,7 +86,8 @@ const ChangePasswordScreen = ({navigation}) => {
           </View>
           <Text style={styles.successTitle}>Password changed!</Text>
           <Text style={styles.successDesc}>
-            Your password has been updated successfully. Use your new password next time you sign in.
+            Your password has been updated successfully. Use your new password
+            next time you sign in.
           </Text>
           <Button label="Back to settings" onPress={() => navigation.goBack()} />
         </View>
@@ -87,7 +107,10 @@ const ChangePasswordScreen = ({navigation}) => {
         label="Current password"
         placeholder="Enter current password"
         value={current}
-        onChangeText={v => {setCurrent(v); setCurrentError('');}}
+        onChangeText={v => {
+          setCurrent(v);
+          setCurrentError('');
+        }}
         secureTextEntry
         error={currentError}
       />
@@ -119,13 +142,16 @@ const ChangePasswordScreen = ({navigation}) => {
       />
 
       <Button
-        label="Update password"
+        label={loading ? 'Updating…' : 'Update password'}
         onPress={handleSubmit}
         disabled={!canSubmit}
+        loading={loading}
         style={styles.btn}
       />
 
-      <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotBtn}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate('ForgotPassword')}
+        style={styles.forgotBtn}>
         <Text style={styles.forgotText}>Forgot current password?</Text>
       </TouchableOpacity>
     </ScreenWrapper>
@@ -158,8 +184,17 @@ const styles = StyleSheet.create({
   },
   strengthBars: {flexDirection: 'row', gap: 4, flex: 1},
   strengthSegment: {flex: 1, height: 4, borderRadius: 2},
-  strengthLabel: {fontSize: fontSize.xs, fontWeight: fontWeight.semiBold, minWidth: 40},
-  ruleRow: {flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: spacing.sm},
+  strengthLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semiBold,
+    minWidth: 40,
+  },
+  ruleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: spacing.sm,
+  },
   ruleDot: {
     width: 18,
     height: 18,
@@ -174,7 +209,11 @@ const styles = StyleSheet.create({
   ruleLabelPassed: {color: colors.success},
   btn: {marginTop: spacing.sm},
   forgotBtn: {alignItems: 'center', marginTop: spacing.md},
-  forgotText: {fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semiBold},
+  forgotText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.semiBold,
+  },
   successContainer: {flex: 1, alignItems: 'center', paddingTop: spacing['2xl']},
   successIconWrap: {
     width: 80,

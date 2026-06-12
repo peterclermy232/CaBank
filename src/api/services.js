@@ -31,6 +31,21 @@ export const authApi = {
    * @param {{ currentPassword: string, newPassword: string }} body
    */
   changePassword: body => api.post('/auth/change-password', body),
+  /**
+   * @param {string} phone
+   */
+  forgotPassword: (phone) =>
+    api.post('/auth/forgot-password', {phone}, {skipAuth: true}),
+
+  /**
+   * @param {string} phone
+   * @param {string} code
+   */
+  verifyOtp: (phone, code) =>
+    api.post('/auth/verify-otp', {phone, code}, {skipAuth: true}),
+
+  resetPassword: (phone, newPassword, confirmPassword) =>
+    api.post('/auth/reset-password', {phone, newPassword, confirmPassword}, {skipAuth: true}),
 };
 
 // ─── Accounts ─────────────────────────────────────────────────────────────────
@@ -136,4 +151,9 @@ export const beneficiariesApi = {
 
   /** @param {string} id */
   delete: id => api.delete(`/beneficiaries/${id}`),
+};
+
+export const otpApi = {
+  request: () => api.post('/otp/request', {}),
+  verify: (code) => api.post('/otp/verify', {code}),
 };

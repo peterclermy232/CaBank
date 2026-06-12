@@ -1,53 +1,84 @@
 import React, {useState} from 'react';
-import {View, Text, TextInput, StyleSheet, TouchableOpacity, Alert} from 'react-native';
-import {ScreenWrapper, Button} from '../../components/common';
-import {mockUser} from '../../store/data';
-import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
+import {View, Text, StyleSheet, Alert} from 'react-native';
+import {ScreenWrapper, Button, Input} from '../../components/common';
+import {useAuth} from '../../context/AuthContext';
+import {authApi} from '../../api/services';
+import {colors, spacing, fontSize, fontWeight} from '../../theme';
 
 const EditProfileScreen = ({navigation}) => {
-  const [name, setName] = useState(mockUser.name);
-  const [email, setEmail] = useState(mockUser.email);
-  const [phone, setPhone] = useState(mockUser.phone || '');
+  const {user, refreshUser} = useAuth();
 
-  const handleSave = () => {
-    mockUser.name = name;
-    mockUser.email = email;
-    mockUser.phone = phone;
-    Alert.alert('Success', 'Profile updated successfully', [
-      {text: 'OK', onPress: () => navigation.goBack()},
-    ]);
+  const [name, setName] = useState(user?.name ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await authApi.updateProfile({
+        name: name !== user?.name ? name : undefined,
+        phone: phone !== user?.phone ? phone : undefined,
+      });
+      await refreshUser(); // Update AuthContext with latest profile
+      Alert.alert('Success', 'Profile updated successfully', [
+        {text: 'OK', onPress: () => navigation.goBack()},
+      ]);
+    } catch (err) {
+      Alert.alert('Update failed', err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <ScreenWrapper title="Edit Profile">
+    <ScreenWrapper
+      title="Edit Profile"
+      onBack={() => navigation.goBack()}>
       <View style={styles.field}>
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} />
+        <Input
+          label="Full Name"
+          placeholder="Enter your name"
+          value={name}
+          onChangeText={setName}
+        />
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" />
+        <Input
+          label="Email"
+          placeholder="Email address"
+          value={user?.email ?? ''}
+          onChangeText={() => {}}
+          editable={false}
+        />
+        <Text style={styles.hint}>Email cannot be changed.</Text>
       </View>
       <View style={styles.field}>
-        <Text style={styles.label}>Phone</Text>
-        <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        <Input
+          label="Phone"
+          placeholder="Phone number"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
       </View>
-      <Button label="Save Changes" onPress={handleSave} style={{marginTop: spacing.xl}} />
+      <Button
+        label={loading ? 'Saving…' : 'Save Changes'}
+        onPress={handleSave}
+        disabled={loading || (!name && !phone)}
+        loading={loading}
+        style={{marginTop: spacing.xl}}
+      />
     </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  field: {marginBottom: spacing.lg},
-  label: {fontSize: fontSize.sm, fontWeight: fontWeight.semiBold, color: colors.textMuted, marginBottom: spacing.xs},
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    fontSize: fontSize.base,
-    color: colors.text,
+  field: {marginBottom: spacing.sm},
+  hint: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 4,
+    paddingHorizontal: 2,
   },
 });
 

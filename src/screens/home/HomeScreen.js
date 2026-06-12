@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import {Avatar, TransactionRow} from '../../components/common';
 import {BankCard} from '../../components/cards';
 import {useAuth} from '../../context/AuthContext';
-import {cardsApi, transactionsApi} from '../../api/services';
+import {useData} from '../../context/DataContext';
 import {colors, spacing, fontSize, fontWeight, borderRadius, shadows} from '../../theme';
 
 const QUICK_ACTIONS = [
@@ -28,40 +28,54 @@ const QUICK_ACTIONS = [
   {id: 'beneficiary', label: 'Beneficiary', icon: '👥', screen: 'Beneficiary'},
 ];
 
+// Normalise a transaction from the backend shape to what TransactionRow expects
+const normaliseTransaction = tx => ({
+  id: tx.id,
+  title: tx.title,
+  cat: tx.category ?? 'other',
+  amount: tx.type === 'DEBIT' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
+  day: tx.createdAt
+    ? new Date(tx.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      })
+    : 'Recent',
+  status: tx.status === 'SUCCESS' ? 'success' : tx.status === 'FAILED' ? 'failed' : 'success',
+  emoji: tx.emoji ?? '💳',
+});
+
+// Normalise a card from backend shape to what BankCard expects
+const normaliseCard = c => ({
+  id: c.id,
+  holder: c.holderName,
+  brand: c.brand,
+  type: c.cardType,
+  number: `•••• •••• •••• ${c.last4}`,
+  last4: c.last4,
+  balance: c.balance ?? 0,
+  validFrom: c.validFrom,
+  goodThru: c.goodThru,
+  color: (c.color ?? 'PRIMARY').toLowerCase(),
+});
+
 const HomeScreen = ({navigation}) => {
   const {user} = useAuth();
+  const {cards: rawCards, transactions: rawTransactions, loadingData, refresh} = useData();
   const [cardIdx, setCardIdx] = useState(0);
-  const [cards, setCards] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [cardsData, txData] = await Promise.all([
-        cardsApi.list(),
-        transactionsApi.recent(),
-      ]);
-      setCards(cardsData ?? []);
-      setTransactions(txData ?? []);
-    } catch (err) {
-      console.warn('HomeScreen load error:', err.message);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData().finally(() => setLoading(false));
-  }, [loadData]);
+  const cards = rawCards.map(normaliseCard);
+  const transactions = rawTransactions.map(normaliseTransaction);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
+    await refresh();
     setRefreshing(false);
-  }, [loadData]);
+  }, [refresh]);
 
   // Group transactions by day label
   const grouped = transactions.reduce((acc, tx) => {
-    const key = tx.day ?? tx.date ?? 'Recent';
+    const key = tx.day ?? 'Recent';
     if (!acc[key]) acc[key] = [];
     acc[key].push(tx);
     return acc;
@@ -75,7 +89,7 @@ const HomeScreen = ({navigation}) => {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.userRow}>
-            <Avatar name={user?.name ?? ''} size={40} />
+            <Avatar name={user?.name ?? '?'} size={40} />
             <View style={styles.userInfo}>
               <Text style={styles.hiText}>Hi,</Text>
               <Text style={styles.userName}>{user?.name ?? ''}</Text>
@@ -89,8 +103,10 @@ const HomeScreen = ({navigation}) => {
         </View>
 
         {/* Cards carousel */}
-        {loading ? (
+        {loadingData ? (
           <ActivityIndicator color="#fff" style={{marginVertical: spacing.lg}} />
+        ) : cards.length === 0 ? (
+          <Text style={styles.noCardsText}>No cards yet</Text>
         ) : (
           <ScrollView
             horizontal
@@ -137,7 +153,9 @@ const HomeScreen = ({navigation}) => {
         {/* Transactions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          {Object.keys(grouped).length === 0 ? (
+          {loadingData ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : Object.keys(grouped).length === 0 ? (
             <Text style={styles.emptyText}>No recent transactions</Text>
           ) : (
             Object.entries(grouped).map(([day, txs]) => (
@@ -182,6 +200,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   notifIcon: {fontSize: 18},
+  noCardsText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    marginVertical: spacing.lg,
+  },
   cardsScroll: {},
   cardsContent: {paddingRight: spacing.md},
   cardWrap: {width: 280},

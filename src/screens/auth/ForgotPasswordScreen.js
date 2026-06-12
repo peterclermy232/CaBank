@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, Alert} from 'react-native';
 import {Button, Input, ScreenWrapper} from '../../components/common';
+import {authApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight} from '../../theme';
 
 const ForgotPasswordScreen = ({navigation}) => {
@@ -9,6 +10,52 @@ const ForgotPasswordScreen = ({navigation}) => {
   const [code, setCode] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSendCode = async () => {
+    setLoading(true);
+    try {
+      await authApi.forgotPassword(phone);
+      setStep(2);
+    } catch (err) {
+      Alert.alert('Failed to send code', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      await authApi.forgotPassword(phone);
+      Alert.alert('Code resent', 'Check your messages for the new code.');
+    } catch (err) {
+      Alert.alert('Failed to resend code', err.message);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    setLoading(true);
+    try {
+      await authApi.verifyOtp(phone, code);
+      setStep(3);
+    } catch (err) {
+      Alert.alert('Invalid code', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setLoading(true);
+    try {
+      await authApi.resetPassword(phone, newPass, confirmPass);
+      setStep(4);
+    } catch (err) {
+      Alert.alert('Failed to reset password', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (step === 4) {
     return (
@@ -33,8 +80,8 @@ const ForgotPasswordScreen = ({navigation}) => {
         <View>
           <Text style={styles.label}>Type your phone number</Text>
           <Input placeholder="(+84) 039 882 9xxx" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-          <Text style={styles.hint}>We texted you a code to verify your phone number</Text>
-          <Button label="Send" onPress={() => setStep(2)} disabled={!phone} />
+          <Text style={styles.hint}>We'll send you a code to verify your phone number</Text>
+          <Button label={loading ? 'Sending…' : 'Send'} onPress={handleSendCode} disabled={!phone || loading} loading={loading} />
         </View>
       )}
 
@@ -43,12 +90,12 @@ const ForgotPasswordScreen = ({navigation}) => {
           <Text style={styles.label}>Type a code</Text>
           <View style={styles.codeRow}>
             <Input placeholder="Code" value={code} onChangeText={setCode} style={styles.codeInput} keyboardType="number-pad" />
-            <Button label="Resend" variant="outline" onPress={() => {}} style={styles.resendBtn} />
+            <Button label="Resend" variant="outline" onPress={handleResend} style={styles.resendBtn} />
           </View>
           <Text style={styles.hint}>
-            We texted you a code to verify your phone number (+84) 039 882 9xxx. This code will expire in 10 minutes.
+            We sent a code to your phone via your CaBank messages. This code will expire in 10 minutes.
           </Text>
-          <Button label="Change password" onPress={() => setStep(3)} disabled={!code} />
+          <Button label={loading ? 'Verifying…' : 'Change password'} onPress={handleVerifyCode} disabled={!code || loading} loading={loading} />
         </View>
       )}
 
@@ -57,9 +104,10 @@ const ForgotPasswordScreen = ({navigation}) => {
           <Input label="New password" placeholder="Enter new password" value={newPass} onChangeText={setNewPass} secureTextEntry />
           <Input label="Confirm password" placeholder="Confirm new password" value={confirmPass} onChangeText={setConfirmPass} secureTextEntry />
           <Button
-            label="Change password"
-            onPress={() => setStep(4)}
-            disabled={!newPass || !confirmPass || newPass !== confirmPass}
+            label={loading ? 'Saving…' : 'Change password'}
+            onPress={handleResetPassword}
+            disabled={!newPass || !confirmPass || newPass !== confirmPass || loading}
+            loading={loading}
             style={styles.btn}
           />
         </View>

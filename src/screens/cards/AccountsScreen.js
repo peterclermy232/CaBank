@@ -14,7 +14,7 @@ import {accountsApi, cardsApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight, borderRadius, shadows} from '../../theme';
 
 const fmt = n =>
-  new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(n);
+  new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(n ?? 0);
 
 const AccountsScreen = ({navigation}) => {
   const {user} = useAuth();
@@ -30,8 +30,9 @@ const AccountsScreen = ({navigation}) => {
           accountsApi.list(),
           cardsApi.list(),
         ]);
-        setAccounts(accs ?? []);
-        setCards(cds ?? []);
+
+        setAccounts(Array.isArray(accs) ? accs : accs?.data ?? []);
+        setCards(Array.isArray(cds) ? cds : cds?.data ?? []);
       } catch (err) {
         console.warn('AccountsScreen load error:', err.message);
       } finally {

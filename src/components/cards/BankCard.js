@@ -3,10 +3,10 @@ import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
 import {colors, borderRadius, fontSize, fontWeight, spacing} from '../../theme';
 
 const fmt = n =>
-  new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(n);
+  new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(n ?? 0);
 
 const BankCard = ({card, onPress, selected = false, compact = false}) => {
-  const isGold = card.color === 'gold';
+  const isGold = card.color?.toUpperCase() === 'GOLD';
   const bg = isGold
     ? ['#E6A817', '#F5C842']
     : [colors.primaryDark, colors.primaryLight];
@@ -27,9 +27,9 @@ const BankCard = ({card, onPress, selected = false, compact = false}) => {
       <View style={styles.circle1} />
       <View style={styles.circle2} />
 
-      <Text style={styles.type}>{card.type}</Text>
-      <Text style={styles.holder}>{card.holder}</Text>
-      <Text style={styles.number}>{card.number}</Text>
+      <Text style={styles.type}>{card.cardType}</Text>
+      <Text style={styles.holder}>{card.holderName}</Text>
+      <Text style={styles.number}>•••• •••• •••• {card.last4}</Text>
       <View style={styles.footer}>
         <Text style={styles.balance}>{fmt(card.balance)}</Text>
         <Text style={styles.brand}>{card.brand}</Text>

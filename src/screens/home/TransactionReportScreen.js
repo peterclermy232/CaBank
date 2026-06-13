@@ -28,13 +28,9 @@ const normaliseTransaction = tx => ({
   cat: tx.category ?? 'other',
   amount: tx.type === 'DEBIT' ? -Math.abs(tx.amount) : Math.abs(tx.amount),
   day: tx.createdAt
-    ? new Date(tx.createdAt).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })
+    ? new Date(tx.createdAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})
     : 'Recent',
   status: tx.status === 'SUCCESS' ? 'success' : tx.status === 'FAILED' ? 'failed' : 'success',
-  emoji: tx.emoji ?? '💳',
 });
 
 const TransactionReportScreen = ({navigation}) => {

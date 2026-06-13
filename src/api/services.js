@@ -19,6 +19,13 @@ export const authApi = {
    */
   signIn: body => api.post('/auth/signin', body, {skipAuth: true}),
 
+  /**
+   * @param {string} refreshToken
+   * @returns {{ accessToken, refreshToken, tokenType, user }}
+   */
+  refreshToken: (refreshToken) =>
+    api.post('/auth/refresh', {refreshToken}, {skipAuth: true}),
+
   /** @returns {{ id, name, email, phone, role, createdAt }} */
   getMe: () => api.get('/auth/me'),
 
@@ -31,6 +38,7 @@ export const authApi = {
    * @param {{ currentPassword: string, newPassword: string }} body
    */
   changePassword: body => api.post('/auth/change-password', body),
+
   /**
    * @param {string} phone
    */
@@ -142,7 +150,6 @@ export const messagesApi = {
 export const exchangeRatesApi = {
   /**
    * @returns {{ id, country, currencyCode, flag, buyRate, sellRate, updatedAt }[]}
-   * Public endpoint — no auth required.
    */
   list: () => api.get('/exchange-rates', {skipAuth: true}),
 };
@@ -163,6 +170,7 @@ export const otpApi = {
   request: () => api.post('/otp/request', {}),
   verify: (code) => api.post('/otp/verify', {code}),
 };
+
 // ─── Deposits ────────────────────────────────────────────────────────────────
 export const depositsApi = {
   /**
@@ -176,4 +184,16 @@ export const topUpApi = {
    * @param {{ cardId: string, amount: number }} data
    */
   topUp: (data) => api.post('/topup', data),
+};
+
+// ─── Withdrawals ──────────────────────────────────────────────────────────────
+export const withdrawalsApi = {
+  /**
+   * @param {{ cardId: string, phone: string, amount: number, otpCode: string }} body
+   * @returns {{ id, amount, cardLast4, phone, status, newBalance, createdAt }}
+   */
+  create: body => api.post('/withdraw', body),
+
+  /** @returns {Withdrawal[]} */
+  history: () => api.get('/withdraw'),
 };

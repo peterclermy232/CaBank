@@ -6,45 +6,60 @@ import {
   Switch,
   TouchableOpacity,
   Animated,
-  TextInput,
+  Alert,
 } from 'react-native';
-import {Button, ScreenWrapper} from '../../components/common';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {ScreenWrapper} from '../../components/common';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
+import {useAuth} from '../../context/AuthContext';
+import {
+  saveBiometricCredential,
+  clearBiometricCredential,
+  getAvailableBiometryType,
+} from '../../utils/biometrics';
+
+const BIOMETRIC_ENABLED_KEY = 'cabank_biometric_enabled';
 
 const BIOMETRIC_TYPES = [
   {
     id: 'fingerprint',
-    icon: '👆',
+    icon: 'fingerprint',
     label: 'Fingerprint',
     sub: 'Use your fingerprint to sign in quickly and securely.',
   },
   {
     id: 'faceid',
-    icon: '🤳',
+    icon: 'face-recognition',
     label: 'Face ID',
     sub: 'Use facial recognition to verify your identity.',
   },
 ];
 
 const PinDot = ({filled}) => (
-  <View
-    style={[
-      styles.pinDot,
-      filled && styles.pinDotFilled,
-    ]}
-  />
+  <View style={[styles.pinDot, filled && styles.pinDotFilled]} />
 );
 
 const BiometricScreen = ({navigation}) => {
+  const {getRefreshToken} = useAuth();
   const [enabled, setEnabled] = useState({fingerprint: false, faceid: false});
   const [activating, setActivating] = useState(null);
   const [pin, setPin] = useState('');
-  const [pinStep, setPinStep] = useState('enter'); // enter | confirm
+  const [pinStep, setPinStep] = useState('enter');
   const [firstPin, setFirstPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinSuccess, setPinSuccess] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const val = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
+        if (val) setEnabled(JSON.parse(val));
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     if (activating) {
@@ -59,8 +74,21 @@ const BiometricScreen = ({navigation}) => {
     }
   }, [activating, pulseAnim]);
 
-  const handleToggle = (id, value) => {
+  const persistEnabled = async (next) => {
+    await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, JSON.stringify(next));
+  };
+
+  const handleToggle = async (id, value) => {
     if (value) {
+      // Check sensor is available and enrolled before proceeding
+      const type = await getAvailableBiometryType();
+      if (!type) {
+        Alert.alert(
+          'No biometric sensor found',
+          'Please enroll a fingerprint in your device Settings → Security → Fingerprint first, then try again.',
+        );
+        return;
+      }
       setActivating(id);
       setPin('');
       setPinStep('enter');
@@ -68,7 +96,12 @@ const BiometricScreen = ({navigation}) => {
       setPinError('');
       setPinSuccess(false);
     } else {
-      setEnabled(prev => ({...prev, [id]: false}));
+      const next = {...enabled, [id]: false};
+      setEnabled(next);
+      persistEnabled(next);
+      if (!Object.values(next).some(Boolean)) {
+        clearBiometricCredential();
+      }
     }
   };
 
@@ -79,15 +112,25 @@ const BiometricScreen = ({navigation}) => {
     setPinError('');
 
     if (next.length === 6) {
-      setTimeout(() => {
+      setTimeout(async () => {
         if (pinStep === 'enter') {
           setFirstPin(next);
           setPin('');
           setPinStep('confirm');
         } else {
           if (next === firstPin) {
-            setEnabled(prev => ({...prev, [activating]: true}));
+            const nextEnabled = {...enabled, [activating]: true};
+            setEnabled(nextEnabled);
             setPinSuccess(true);
+
+            try {
+              const token = await getRefreshToken();
+              await saveBiometricCredential(token);
+              await persistEnabled(nextEnabled);
+            } catch (err) {
+              console.warn('Failed to save biometric credential:', err.message);
+            }
+
             setTimeout(() => {
               setActivating(null);
               setPinSuccess(false);
@@ -113,7 +156,7 @@ const BiometricScreen = ({navigation}) => {
     ['1', '2', '3'],
     ['4', '5', '6'],
     ['7', '8', '9'],
-    ['', '0', '⌫'],
+    ['', '0', 'del'],
   ];
 
   const getAnyEnabled = () => Object.values(enabled).some(Boolean);
@@ -126,16 +169,21 @@ const BiometricScreen = ({navigation}) => {
         onBack={() => setActivating(null)}>
 
         <Animated.View style={[styles.bioIconWrap, {transform: [{scale: pulseAnim}]}]}>
-          <Text style={styles.bioIconLarge}>{bio.icon}</Text>
+          <Icon name={bio.icon} size={48} color={colors.primary} />
         </Animated.View>
 
-        <Text style={styles.pinPrompt}>
-          {pinSuccess
-            ? '✅  Biometric enabled!'
-            : pinStep === 'enter'
-            ? 'Create a 6-digit backup PIN'
-            : 'Confirm your PIN'}
-        </Text>
+        <View style={styles.pinPromptRow}>
+          {pinSuccess && (
+            <Icon name="check-circle" size={20} color={colors.success} style={{marginRight: 6}} />
+          )}
+          <Text style={styles.pinPrompt}>
+            {pinSuccess
+              ? 'Biometric enabled!'
+              : pinStep === 'enter'
+              ? 'Create a 6-digit backup PIN'
+              : 'Confirm your PIN'}
+          </Text>
+        </View>
         <Text style={styles.pinSub}>
           {pinSuccess
             ? `You can now use ${bio.label} to sign in.`
@@ -159,12 +207,16 @@ const BiometricScreen = ({navigation}) => {
                     <TouchableOpacity
                       key={di}
                       onPress={() => {
-                        if (d === '⌫') handlePinDelete();
+                        if (d === 'del') handlePinDelete();
                         else if (d) handlePinPress(d);
                       }}
                       style={[styles.numKey, !d && styles.numKeyEmpty]}
                       activeOpacity={d ? 0.6 : 1}>
-                      {d ? <Text style={styles.numKeyText}>{d}</Text> : null}
+                      {d === 'del' ? (
+                        <Icon name="backspace-outline" size={24} color={colors.text} />
+                      ) : d ? (
+                        <Text style={styles.numKeyText}>{d}</Text>
+                      ) : null}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -181,9 +233,10 @@ const BiometricScreen = ({navigation}) => {
 
       {getAnyEnabled() && (
         <View style={styles.activeCard}>
-          <Text style={styles.activeCardText}>
-            ✅  Biometric login is active
-          </Text>
+          <View style={styles.activeCardTitleRow}>
+            <Icon name="check-circle" size={16} color={colors.success} />
+            <Text style={styles.activeCardText}>Biometric login is active</Text>
+          </View>
           <Text style={styles.activeCardSub}>
             You can sign in using your enabled biometric method.
           </Text>
@@ -193,7 +246,7 @@ const BiometricScreen = ({navigation}) => {
       {BIOMETRIC_TYPES.map(bio => (
         <View key={bio.id} style={styles.bioCard}>
           <View style={styles.bioIconSmallWrap}>
-            <Text style={styles.bioIconSmall}>{bio.icon}</Text>
+            <Icon name={bio.icon} size={26} color={colors.primary} />
           </View>
           <View style={styles.bioInfo}>
             <Text style={styles.bioLabel}>{bio.label}</Text>
@@ -209,16 +262,23 @@ const BiometricScreen = ({navigation}) => {
       ))}
 
       <View style={styles.infoBox}>
-        <Text style={styles.infoBoxTitle}>🔒  How it works</Text>
+        <View style={styles.infoBoxTitleRow}>
+          <Icon name="lock-outline" size={16} color={colors.text} />
+          <Text style={styles.infoBoxTitle}>How it works</Text>
+        </View>
         <Text style={styles.infoBoxText}>
-          When enabled, biometric login replaces typing your password. A 6-digit backup PIN is required in case biometric is unavailable.
+          When enabled, biometric login replaces typing your password. A 6-digit
+          backup PIN is required in case biometric is unavailable.
         </Text>
       </View>
 
       {getAnyEnabled() && (
         <TouchableOpacity
-          onPress={() => {
-            setEnabled({fingerprint: false, faceid: false});
+          onPress={async () => {
+            const next = {fingerprint: false, faceid: false};
+            setEnabled(next);
+            await clearBiometricCredential();
+            await persistEnabled(next);
           }}
           style={styles.disableAllBtn}>
           <Text style={styles.disableAllText}>Disable all biometrics</Text>
@@ -237,7 +297,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: colors.success,
   },
-  activeCardText: {fontSize: fontSize.sm, fontWeight: fontWeight.semiBold, color: colors.success, marginBottom: 4},
+  activeCardTitleRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4},
+  activeCardText: {fontSize: fontSize.sm, fontWeight: fontWeight.semiBold, color: colors.success},
   activeCardSub: {fontSize: fontSize.sm, color: colors.textSecondary},
   bioCard: {
     flexDirection: 'row',
@@ -258,7 +319,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bioIconSmall: {fontSize: 26},
   bioInfo: {flex: 1},
   bioLabel: {fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.text, marginBottom: 2},
   bioSub: {fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 18},
@@ -270,11 +330,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  infoBoxTitle: {fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text, marginBottom: spacing.xs},
+  infoBoxTitleRow: {flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.xs},
+  infoBoxTitle: {fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text},
   infoBoxText: {fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 20},
   disableAllBtn: {alignItems: 'center', marginTop: spacing.lg},
   disableAllText: {fontSize: fontSize.sm, color: colors.error, fontWeight: fontWeight.semiBold},
-
   bioIconWrap: {
     width: 100,
     height: 100,
@@ -286,13 +346,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     marginTop: spacing.lg,
   },
-  bioIconLarge: {fontSize: 52},
+  pinPromptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
   pinPrompt: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.text,
     textAlign: 'center',
-    marginBottom: spacing.xs,
   },
   pinSub: {
     fontSize: fontSize.sm,

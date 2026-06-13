@@ -6,9 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
-import {Button, Input, ScreenWrapper, Avatar} from '../../components/common';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {Button, Input, ScreenWrapper, Avatar, useToast} from '../../components/common';
 import {useData} from '../../context/DataContext';
 import {transfersApi, otpApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
@@ -19,12 +19,13 @@ const fmt = n =>
   );
 
 const TX_TYPES = [
-  {id: 'card', label: 'Transfer via\ncard number', icon: '💳'},
-  {id: 'same', label: 'Transfer to\nsame bank', icon: '🏦'},
-  {id: 'other', label: 'Transfer to\nanother bank', icon: '🔄'},
+  {id: 'card',  label: 'Transfer via\ncard number', icon: 'credit-card-outline'},
+  {id: 'same',  label: 'Transfer to\nsame bank',    icon: 'bank-outline'},
+  {id: 'other', label: 'Transfer to\nanother bank', icon: 'bank-transfer'},
 ];
 
 const TransferScreen = ({navigation}) => {
+  const toast = useToast();
   const {cards: rawCards, beneficiaries} = useData();
 
   const cards = rawCards.map(c => ({
@@ -34,25 +35,25 @@ const TransferScreen = ({navigation}) => {
     balance: c.balance ?? 0,
   }));
 
-  const [step, setStep] = useState(1);
+  const [step, setStep]                 = useState(1);
   const [selectedCard, setSelectedCard] = useState(null);
-  const [txType, setTxType] = useState('card');
-  const [beneficiary, setBeneficiary] = useState(null);
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  const [txType, setTxType]             = useState('card');
+  const [beneficiary, setBeneficiary]   = useState(null);
+  const [amount, setAmount]             = useState('');
+  const [note, setNote]                 = useState('');
+  const [otp, setOtp]                   = useState('');
+  const [otpLoading, setOtpLoading]     = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [done, setDone]                 = useState(false);
 
   const activeCard = selectedCard ?? cards[0];
 
-  // ── Real OTP request ──────────────────────────────────────────────────────
   const handleGetOtp = async () => {
     setOtpLoading(true);
     try {
       const result = await otpApi.request();
-      setOtp(result?.code ?? '');
+      if (result?.code) setOtp(result.code);
+      toast.show('OTP sent to your registered phone', 'info');
     } catch (err) {
       Alert.alert('Failed to send OTP', err.message);
     } finally {
@@ -61,7 +62,7 @@ const TransferScreen = ({navigation}) => {
   };
 
   const handleConfirm = async () => {
-    if (!beneficiary || !amount || !activeCard) return;
+    if (!beneficiary || !amount || !activeCard || !otp) return;
     setLoading(true);
     try {
       await transfersApi.create({
@@ -70,6 +71,7 @@ const TransferScreen = ({navigation}) => {
         beneficiaryName: beneficiary.name,
         amount: parseFloat(amount),
         note: note || undefined,
+        otpCode: otp,
       });
       setDone(true);
     } catch (err) {
@@ -83,19 +85,19 @@ const TransferScreen = ({navigation}) => {
     return (
       <ScreenWrapper title="Confirm" onBack={() => navigation.goBack()}>
         <View style={styles.successContainer}>
-          <Text style={styles.successEmoji}>🎉</Text>
+          <Icon name="check-circle-outline" size={72} color={colors.success} />
           <Text style={styles.successTitle}>Transfer successful!</Text>
           <Text style={styles.successDesc}>
-            You have successfully transferred{' '}
-            <Text style={{fontWeight: fontWeight.bold, color: colors.primary}}>
+            You transferred{' '}
+            <Text style={styles.bold}>
               {fmt(parseFloat(amount) || 0)}
             </Text>{' '}
             to{' '}
-            <Text style={{fontWeight: fontWeight.bold}}>
-              {beneficiary?.name || 'recipient'}!
+            <Text style={styles.bold}>
+              {beneficiary?.name || 'recipient'}
             </Text>
           </Text>
-          <Button label="Confirm" onPress={() => navigation.goBack()} />
+          <Button label="Done" onPress={() => navigation.goBack()} />
         </View>
       </ScreenWrapper>
     );
@@ -105,6 +107,7 @@ const TransferScreen = ({navigation}) => {
     <ScreenWrapper
       title={step === 1 ? 'Transfer' : 'Confirm'}
       onBack={() => (step > 1 ? setStep(1) : navigation.goBack())}>
+
       {step === 1 && (
         <View>
           {/* Card selector */}
@@ -132,7 +135,7 @@ const TransferScreen = ({navigation}) => {
 
           {/* TX Type */}
           <Text style={[styles.sectionLabel, {marginTop: spacing.md}]}>
-            Choose transaction
+            Choose transaction type
           </Text>
           <View style={styles.txTypeRow}>
             {TX_TYPES.map(t => (
@@ -143,16 +146,18 @@ const TransferScreen = ({navigation}) => {
                   styles.txTypeItem,
                   txType === t.id && styles.txTypeItemSelected,
                 ]}>
-                <Text style={styles.txTypeIcon}>{t.icon}</Text>
+                <Icon
+                  name={t.icon}
+                  size={22}
+                  color={txType === t.id ? colors.warning : colors.textSecondary}
+                />
                 <Text style={styles.txTypeLabel}>{t.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Beneficiary */}
-          <View style={styles.benRow}>
-            <Text style={styles.sectionLabel}>Choose beneficiary</Text>
-          </View>
+          <Text style={styles.sectionLabel}>Choose beneficiary</Text>
           {beneficiaries.length === 0 ? (
             <Text style={styles.emptyNote}>No beneficiaries saved yet.</Text>
           ) : (
@@ -168,11 +173,7 @@ const TransferScreen = ({navigation}) => {
                   <Avatar
                     name={b.name}
                     size={46}
-                    style={
-                      beneficiary?.id === b.id
-                        ? styles.benAvatarSelected
-                        : undefined
-                    }
+                    style={beneficiary?.id === b.id ? styles.benAvatarSelected : undefined}
                   />
                   <Text style={styles.benName}>{b.name}</Text>
                 </TouchableOpacity>
@@ -208,7 +209,7 @@ const TransferScreen = ({navigation}) => {
             onChangeText={setNote}
           />
           <Button
-            label="Confirm"
+            label="Continue"
             onPress={() => setStep(2)}
             disabled={!beneficiary || !amount}
           />
@@ -217,19 +218,14 @@ const TransferScreen = ({navigation}) => {
 
       {step === 2 && (
         <View>
-          <Text style={styles.sectionLabel}>
-            Confirm transaction information
-          </Text>
+          <Text style={styles.sectionLabel}>Confirm transaction</Text>
           {[
-            ['From', `•••• •••• ${activeCard?.last4 ?? '????'}`],
-            ['To', beneficiary?.name || ''],
-            [
-              'Account number',
-              beneficiary?.accountNumber ?? beneficiary?.number ?? '',
-            ],
-            ['Transaction fee', '$10'],
-            ['Content', note || '—'],
-            ['Amount', fmt(parseFloat(amount) || 0)],
+            ['From',           `•••• •••• ${activeCard?.last4 ?? '????'}`],
+            ['To',             beneficiary?.name || ''],
+            ['Account number', beneficiary?.accountNumber ?? beneficiary?.number ?? ''],
+            ['Transaction fee','$10'],
+            ['Content',        note || '—'],
+            ['Amount',         fmt(parseFloat(amount) || 0)],
           ].map(([k, v]) => (
             <View key={k} style={styles.confirmRow}>
               <Text style={styles.confirmKey}>{k}</Text>
@@ -240,11 +236,11 @@ const TransferScreen = ({navigation}) => {
           ))}
 
           <Text style={[styles.sectionLabel, {marginTop: spacing.md}]}>
-            Get OTP to verify transaction
+            OTP verification
           </Text>
           <View style={styles.otpRow}>
             <Input
-              placeholder="OTP"
+              placeholder="Enter OTP"
               value={otp}
               onChangeText={setOtp}
               style={styles.otpInput}
@@ -260,7 +256,7 @@ const TransferScreen = ({navigation}) => {
           </View>
 
           <Button
-            label={loading ? 'Processing…' : 'Confirm'}
+            label={loading ? 'Processing…' : 'Confirm Transfer'}
             onPress={handleConfirm}
             disabled={!otp || loading}
             loading={loading}
@@ -296,16 +292,8 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: `${colors.primary}10`,
   },
-  cardOptionNum: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semiBold,
-    color: colors.text,
-  },
-  cardOptionBal: {
-    fontSize: fontSize.sm,
-    color: colors.success,
-    fontWeight: fontWeight.semiBold,
-  },
+  cardOptionNum: {fontSize: fontSize.sm, fontWeight: fontWeight.semiBold, color: colors.text},
+  cardOptionBal: {fontSize: fontSize.sm, color: colors.success, fontWeight: fontWeight.semiBold},
   txTypeRow: {flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md},
   txTypeItem: {
     flex: 1,
@@ -320,18 +308,7 @@ const styles = StyleSheet.create({
     borderColor: colors.warning,
     backgroundColor: `${colors.warning}15`,
   },
-  txTypeIcon: {fontSize: 22},
-  txTypeLabel: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  benRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
+  txTypeLabel: {fontSize: fontSize.xs, color: colors.textSecondary, textAlign: 'center'},
   benScroll: {marginBottom: spacing.md},
   benItem: {alignItems: 'center', marginRight: spacing.lg, gap: spacing.xs},
   benAvatarSelected: {borderWidth: 3, borderColor: colors.primaryDark},
@@ -343,11 +320,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     padding: spacing.md,
   },
-  confirmValText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semiBold,
-    color: colors.text,
-  },
+  confirmValText: {fontSize: fontSize.base, fontWeight: fontWeight.semiBold, color: colors.text},
   otpRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -362,11 +335,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: spacing['2xl'],
   },
-  successEmoji: {fontSize: 72, marginBottom: spacing.lg},
   successTitle: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.extraBold,
     color: colors.primary,
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   successDesc: {
@@ -376,6 +349,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     lineHeight: 22,
   },
+  bold: {fontWeight: fontWeight.bold, color: colors.text},
 });
 
 export default TransferScreen;

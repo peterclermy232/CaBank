@@ -1,16 +1,3 @@
-/**
- * DataContext
- *
- * App-wide cache for shared data so every screen doesn't independently
- * hit the backend on mount. Refreshed on demand via refresh().
- *
- * Provides:
- *   cards, accounts, transactions, messages, exchangeRates, beneficiaries
- *   loadingData  – true on first load
- *   refresh()    – force reload everything
- *   refreshMessages() – lightweight re-fetch of messages only
- */
-
 import React, {
   createContext,
   useCallback,

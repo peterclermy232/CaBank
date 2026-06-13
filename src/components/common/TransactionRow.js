@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
 
 const fmt = n =>
@@ -13,10 +14,30 @@ const catBg = {
   shopping: '#EDE7F6',
 };
 
+const catIcon = {
+  income: 'cash-plus',
+  bill: 'file-document-outline',
+  shopping: 'cart-outline',
+  transfer: 'bank-transfer',
+  withdrawal: 'cash-minus',
+  deposit: 'cash-plus',
+  other: 'credit-card-outline',
+};
+
+const catIconColor = {
+  income: colors.success,
+  bill: colors.warning,
+  shopping: colors.primary,
+};
+
 const TransactionRow = ({tx}) => (
   <View style={styles.row}>
     <View style={[styles.icon, {backgroundColor: catBg[tx.cat] || '#F0F0F0'}]}>
-      <Text style={styles.emoji}>{tx.emoji}</Text>
+      <Icon
+        name={catIcon[tx.cat] || catIcon.other}
+        size={20}
+        color={catIconColor[tx.cat] || colors.textSecondary}
+      />
     </View>
     <View style={styles.info}>
       <Text style={styles.title}>{tx.title}</Text>
@@ -57,9 +78,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
-  },
-  emoji: {
-    fontSize: 20,
   },
   info: {
     flex: 1,

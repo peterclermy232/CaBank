@@ -1,18 +1,3 @@
-/**
- * AuthContext
- *
- * Provides:
- *   - user       : current UserResponse | null
- *   - loading    : true while restoring session on startup
- *   - signIn(email, password) → throws ApiError on failure
- *   - signUp(name, email, password, phone) → throws ApiError on failure
- *   - signOut()
- *   - refreshUser() → re-fetches /auth/me and updates stored user
- *
- * Usage in any screen:
- *   const { user, signIn, signOut } = useAuth();
- */
-
 import React, {
   createContext,
   useCallback,
@@ -22,12 +7,13 @@ import React, {
 } from 'react';
 import {authApi} from '../api/services';
 import {tokenStorage} from '../api/client';
+import {clearBiometricCredential} from '../utils/biometrics';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({children}) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // restoring session
+  const [loading, setLoading] = useState(true);
 
   // ── Restore session on app launch ──────────────────────────────────────────
   useEffect(() => {
@@ -35,12 +21,10 @@ export function AuthProvider({children}) {
       try {
         const token = await tokenStorage.getAccess();
         if (!token) return;
-        // Validate token by fetching current profile
         const me = await authApi.getMe();
         await tokenStorage.setUser(me);
         setUser(me);
       } catch {
-        // Token invalid or expired — clear storage silently
         await tokenStorage.clear();
       } finally {
         setLoading(false);
@@ -76,9 +60,10 @@ export function AuthProvider({children}) {
 
   // ── Sign Out ────────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
-    await tokenStorage.clear();
-    setUser(null);
-  }, []);
+  await tokenStorage.clear();
+  await clearBiometricCredential();
+  setUser(null);
+}, []);
 
   // ── Refresh profile ─────────────────────────────────────────────────────────
   const refreshUser = useCallback(async () => {
@@ -88,8 +73,31 @@ export function AuthProvider({children}) {
     return me;
   }, []);
 
+  // ── Sign In With Tokens (biometric flow) ────────────────────────────────────
+  const signInWithTokens = useCallback(async ({accessToken, refreshToken, user: me}) => {
+    await tokenStorage.setTokens(accessToken, refreshToken);
+    await tokenStorage.setUser(me);
+    setUser(me);
+    return me;
+  }, []);
+
+  // ── Get stored refresh token (for BiometricScreen) ──────────────────────────
+  const getRefreshToken = useCallback(async () => {
+    return tokenStorage.getRefresh();
+  }, []);
+
   return (
-    <AuthContext.Provider value={{user, loading, signIn, signUp, signOut, refreshUser}}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        refreshUser,
+        signInWithTokens,
+        getRefreshToken,
+      }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,7 +3,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {Text, View} from 'react-native';
-
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 // Context
 import {useData} from '../context/DataContext';
 
@@ -42,16 +42,20 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
-  Home: '🏠',
-  Search: '🔍',
-  Messages: '✉️',
-  Settings: '⚙️',
+  Home: {active: 'home', inactive: 'home-outline'},
+  Search: {active: 'magnify', inactive: 'magnify'},
+  Messages: {active: 'email', inactive: 'email-outline'},
+  Settings: {active: 'cog', inactive: 'cog-outline'},
 };
 
 const TabIcon = ({name, focused, badge = 0}) => (
   <View style={{alignItems: 'center'}}>
     <View>
-      <Text style={{fontSize: 22}}>{TAB_ICONS[name]}</Text>
+      <Icon
+        name={focused ? TAB_ICONS[name].active : TAB_ICONS[name].inactive}
+        size={22}
+        color={focused ? colors.primary : colors.textMuted}
+      />
 
       {badge > 0 && (
         <View

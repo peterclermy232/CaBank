@@ -193,7 +193,7 @@ const CardDetailScreen = ({navigation, route}) => {
 
         {/* Top Up */}
         <Button
-          label="💳  Top Up Card"
+          label="Top Up Card"
           onPress={() => navigation.navigate('TopUp', {cardId: card.id})}
           style={styles.topUpBtn}
         />

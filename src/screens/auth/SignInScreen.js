@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,48 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Button, Input} from '../../components/common';
 import {useAuth} from '../../context/AuthContext';
+import {authApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
+import {
+  getBiometricCredential,
+  getAvailableBiometryType,
+} from '../../utils/biometrics';
+
+const BIOMETRIC_ENABLED_KEY = 'cabank_biometric_enabled';
 
 const SignInScreen = ({navigation}) => {
-  const {signIn} = useAuth();
+  const {signIn, signInWithTokens} = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometryType, setBiometryType] = useState(null);
 
+  useEffect(() => {
+  (async () => {
+    try {
+      const stored = await AsyncStorage.getItem('cabank_biometric_enabled');
+      const anyEnabled = stored
+        ? Object.values(JSON.parse(stored)).some(Boolean)
+        : false;
+
+      if (!anyEnabled) return;
+
+      const type = await getAvailableBiometryType();
+
+      // Show button if user enabled biometrics, even if type check returns null
+      // The OS prompt will handle unavailability gracefully
+      setBiometryType(type ?? 'Biometrics');
+      setBiometricAvailable(true);
+    } catch (e) {
+      console.log('Biometric check error:', e);
+    }
+  })();
+}, []);
   const handleSignIn = async () => {
     if (!email || !password) return;
     setLoading(true);
@@ -31,6 +63,34 @@ const SignInScreen = ({navigation}) => {
       setLoading(false);
     }
   };
+
+  const handleBiometricSignIn = async () => {
+    try {
+      // This call triggers the native fingerprint / Face ID prompt
+      const refreshToken = await getBiometricCredential();
+      if (!refreshToken) {
+        Alert.alert(
+          'Biometric sign-in',
+          'No saved credential found. Please sign in with your password first.',
+        );
+        return;
+      }
+
+      const result = await authApi.refreshToken(refreshToken);
+      await signInWithTokens(result);
+      navigation.replace('MainTabs');
+    } catch (err) {
+      Alert.alert(
+        'Biometric sign-in failed',
+        err.message || 'Please try again or use your password.',
+      );
+    }
+  };
+
+  const biometricIcon =
+    biometryType === 'FaceID' ? 'face-recognition' : 'fingerprint';
+  const biometricLabel =
+    biometryType === 'FaceID' ? 'Face ID' : 'Fingerprint';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -45,6 +105,7 @@ const SignInScreen = ({navigation}) => {
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
         showsVerticalScrollIndicator={false}>
+
         <Input
           placeholder="Email or Username"
           value={email}
@@ -58,6 +119,7 @@ const SignInScreen = ({navigation}) => {
           onChangeText={setPassword}
           secureTextEntry
         />
+
         <TouchableOpacity
           onPress={() => navigation.navigate('ForgotPassword')}
           style={styles.forgotWrap}>
@@ -70,13 +132,25 @@ const SignInScreen = ({navigation}) => {
           disabled={loading || !email || !password}
         />
 
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.divider} />
-        </View>
+        {biometricAvailable && (
+          <>
+            <View style={styles.dividerRow}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.divider} />
+            </View>
 
-        <Text style={styles.biometric}>👆</Text>
+            <TouchableOpacity
+              onPress={handleBiometricSignIn}
+              style={styles.biometricBtn}
+              activeOpacity={0.7}>
+              <Icon name={biometricIcon} size={32} color={colors.primary} />
+              <Text style={styles.biometricLabel}>
+                Sign in with {biometricLabel}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
@@ -130,7 +204,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textMuted,
   },
-  biometric: {fontSize: 52, textAlign: 'center', marginBottom: spacing.md},
+  biometricBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+  },
+  biometricLabel: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.semiBold,
+  },
   signupRow: {
     flexDirection: 'row',
     justifyContent: 'center',

@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const BASE_URL = __DEV__
   ? 'http://10.0.2.2:8080/api'
-  : 'https://your-cabank-backend.onrender.com/api';
+  : 'https://cabank-backend.onrender.com/api';
 
 const STORAGE_KEYS = {
   ACCESS_TOKEN: '@cabank/access_token',

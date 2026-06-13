@@ -1,4 +1,9 @@
 {
   "name": "CaBank",
-  "displayName": "CaBank"
+  "displayName": "CaBank",
+  "extra": {
+    "eas": {
+      "projectId": "c23eeefc-9bfb-47bf-ad9c-e147911160c7"
+    }
+  }
 }

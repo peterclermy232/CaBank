@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -11,13 +12,14 @@ import {ScreenWrapper, Button, Input} from '../../components/common';
 import {BankCard} from '../../components/cards';
 import {cardsApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
+import {normaliseCard} from '../../utils/normalise';
 
 const fmt = n =>
   new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(
     n ?? 0,
   );
 
-// ─── Create mode (no card param) ─────────────────────────────────────────────
+// ─── Create mode ─────────────────────────────────────────────────────────────
 const BRANDS = ['VISA', 'Mastercard', 'American Express'];
 const CARD_TYPES = ['DEBIT', 'CREDIT', 'PREPAID'];
 
@@ -50,82 +52,90 @@ const CreateCardScreen = ({navigation}) => {
 
   return (
     <ScreenWrapper title="Add card" onBack={() => navigation.goBack()}>
-      <Text style={styles.sectionLabel}>Card holder name</Text>
-      <Input
-        placeholder="Full name on card"
-        value={holderName}
-        onChangeText={setHolderName}
-        autoCapitalize="words"
-      />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionLabel}>Card holder name</Text>
+        <Input
+          placeholder="Full name on card"
+          value={holderName}
+          onChangeText={setHolderName}
+          autoCapitalize="words"
+        />
 
-      <Text style={styles.sectionLabel}>Card brand</Text>
-      <View style={styles.chipRow}>
-        {BRANDS.map(b => (
-          <TouchableOpacity
-            key={b}
-            onPress={() => setBrand(b)}
-            style={[styles.chip, brand === b && styles.chipSelected]}>
-            <Text style={[styles.chipText, brand === b && styles.chipTextSelected]}>
-              {b}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.sectionLabel}>Card type</Text>
-      <View style={styles.chipRow}>
-        {CARD_TYPES.map(t => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setCardType(t)}
-            style={[styles.chip, cardType === t && styles.chipSelected]}>
-            <Text
-              style={[styles.chipText, cardType === t && styles.chipTextSelected]}>
-              {t}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.dateRow}>
-        <View style={styles.dateField}>
-          <Text style={styles.sectionLabel}>Valid from</Text>
-          <Input
-            placeholder="MM/YY"
-            value={validFrom}
-            onChangeText={setValidFrom}
-            keyboardType="numeric"
-            maxLength={5}
-          />
+        <Text style={styles.sectionLabel}>Card brand</Text>
+        <View style={styles.chipRow}>
+          {BRANDS.map(b => (
+            <TouchableOpacity
+              key={b}
+              onPress={() => setBrand(b)}
+              style={[styles.chip, brand === b && styles.chipSelected]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  brand === b && styles.chipTextSelected,
+                ]}>
+                {b}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        <View style={styles.dateField}>
-          <Text style={styles.sectionLabel}>Good thru</Text>
-          <Input
-            placeholder="MM/YY"
-            value={goodThru}
-            onChangeText={setGoodThru}
-            keyboardType="numeric"
-            maxLength={5}
-          />
-        </View>
-      </View>
 
-      <Button
-        label={loading ? 'Adding card…' : 'Add card'}
-        onPress={handleAdd}
-        disabled={!isValid || loading}
-        loading={loading}
-        style={styles.btn}
-      />
+        <Text style={styles.sectionLabel}>Card type</Text>
+        <View style={styles.chipRow}>
+          {CARD_TYPES.map(t => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setCardType(t)}
+              style={[styles.chip, cardType === t && styles.chipSelected]}>
+              <Text
+                style={[
+                  styles.chipText,
+                  cardType === t && styles.chipTextSelected,
+                ]}>
+                {t}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.dateRow}>
+          <View style={styles.dateField}>
+            <Text style={styles.sectionLabel}>Valid from</Text>
+            <Input
+              placeholder="MM/YY"
+              value={validFrom}
+              onChangeText={setValidFrom}
+              keyboardType="numeric"
+              maxLength={5}
+            />
+          </View>
+          <View style={styles.dateField}>
+            <Text style={styles.sectionLabel}>Good thru</Text>
+            <Input
+              placeholder="MM/YY"
+              value={goodThru}
+              onChangeText={setGoodThru}
+              keyboardType="numeric"
+              maxLength={5}
+            />
+          </View>
+        </View>
+
+        <Button
+          label={loading ? 'Adding card…' : 'Add card'}
+          onPress={handleAdd}
+          disabled={!isValid || loading}
+          loading={loading}
+          style={styles.btn}
+        />
+      </ScrollView>
     </ScreenWrapper>
   );
 };
 
-// ─── Detail mode (existing card) ─────────────────────────────────────────────
+// ─── Detail mode ─────────────────────────────────────────────────────────────
 const CardDetailScreen = ({navigation, route}) => {
   const card = route.params?.card;
 
-  // Route to create mode when no card is provided
   if (!card) {
     return <CreateCardScreen navigation={navigation} />;
   }
@@ -154,48 +164,61 @@ const CardDetailScreen = ({navigation, route}) => {
   };
 
   return (
-    <ScreenWrapper title="Card" onBack={() => navigation.goBack()}>
-      <BankCard card={card} />
+    <ScreenWrapper title="Card details" onBack={() => navigation.goBack()}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <BankCard card={normaliseCard(card)} />
 
-      <View style={styles.detailCard}>
-        {[
-          ['Name', card.holderName],
-          ['Card number', `•••• •••• •••• ${card.last4}`],
-          ['Card type', card.cardType],
-          ['Brand', card.brand],
-          ['Valid from', card.validFrom],
-          ['Good thru', card.goodThru],
-          ['Available balance', fmt(card.balance)],
-        ].map(([k, v]) => (
-          <View key={k} style={styles.row}>
-            <Text style={styles.key}>{k}</Text>
-            <Text
-              style={[
-                styles.val,
-                k === 'Available balance' && styles.valHighlight,
-              ]}>
-              {v}
-            </Text>
-          </View>
-        ))}
-      </View>
+        <View style={styles.detailCard}>
+          {[
+            ['Name', card.holderName],
+            ['Card number', `•••• •••• •••• ${card.last4}`],
+            ['Card type', card.cardType],
+            ['Brand', card.brand],
+            ['Valid from', card.validFrom],
+            ['Good thru', card.goodThru],
+            ['Available balance', fmt(card.balance)],
+          ].map(([k, v]) => (
+            <View key={k} style={styles.row}>
+              <Text style={styles.key}>{k}</Text>
+              <Text
+                style={[
+                  styles.val,
+                  k === 'Available balance' && styles.valHighlight,
+                ]}>
+                {v}
+              </Text>
+            </View>
+          ))}
+        </View>
 
-      {deleting ? (
-        <ActivityIndicator
-          color={colors.error}
-          style={{marginTop: spacing.xl}}
+        {/* Top Up */}
+        <Button
+          label="💳  Top Up Card"
+          onPress={() => navigation.navigate('TopUp', {cardId: card.id})}
+          style={styles.topUpBtn}
         />
-      ) : (
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-          <Text style={styles.deleteText}>Delete card</Text>
-        </TouchableOpacity>
-      )}
+
+        {/* Delete */}
+        {deleting ? (
+          <ActivityIndicator
+            color={colors.error}
+            style={{marginTop: spacing.xl}}
+          />
+        ) : (
+          <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+            <Text style={styles.deleteText}>Delete card</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Bottom padding so delete link isn't flush against screen edge */}
+        <View style={{height: spacing.xl}} />
+      </ScrollView>
     </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  // Detail mode
+  // Detail
   detailCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
@@ -214,6 +237,7 @@ const styles = StyleSheet.create({
   key: {fontSize: fontSize.sm, color: colors.textSecondary},
   val: {fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.text},
   valHighlight: {color: colors.primary},
+  topUpBtn: {marginTop: spacing.md},
   deleteBtn: {alignItems: 'center', marginTop: spacing.xl},
   deleteText: {
     fontSize: fontSize.base,
@@ -221,7 +245,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semiBold,
   },
 
-  // Create mode
+  // Create
   sectionLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semiBold,
@@ -253,10 +277,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   chipTextSelected: {color: colors.primary},
-  dateRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
+  dateRow: {flexDirection: 'row', gap: spacing.md},
   dateField: {flex: 1},
   btn: {marginTop: spacing.lg},
 });

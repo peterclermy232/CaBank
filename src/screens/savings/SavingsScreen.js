@@ -29,7 +29,6 @@ const SavingsScreen = ({navigation}) => {
   const [loadingSavings, setLoadingSavings] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
 
-  // Load savings list when manage view opens
   useEffect(() => {
     if (view === 'manage') {
       setLoadingSavings(true);
@@ -42,16 +41,24 @@ const SavingsScreen = ({navigation}) => {
   }, [view]);
 
   const handleBack = () => {
-    if (view === 'menu') navigation.goBack();
-    else if (step > 1) setStep(s => s - 1);
-    else setView('menu');
+    if (view === 'menu') {
+      navigation.goBack();
+    } else if (view === 'add' && step === 2) {
+      setStep(1);
+    } else {
+      setView('menu');
+      setStep(1);
+      setAmount('');
+      setOtp('');
+      setSelectedAccount(null);
+    }
   };
 
   const handleGetOtp = async () => {
     setOtpLoading(true);
     try {
-      const result = await otpApi.request();
-      setOtp(result?.code ?? '');
+      await otpApi.request();
+      Alert.alert('Code sent', 'Please enter the OTP you received.');
     } catch (err) {
       Alert.alert('Failed to send code', err.message);
     } finally {
@@ -103,6 +110,7 @@ const SavingsScreen = ({navigation}) => {
 
   return (
     <ScreenWrapper title="Save online" onBack={handleBack}>
+      {/* ── MENU ── */}
       {view === 'menu' && (
         <>
           {[
@@ -127,7 +135,7 @@ const SavingsScreen = ({navigation}) => {
               <View style={styles.menuIcon}>
                 <Text style={styles.menuEmoji}>{it.icon}</Text>
               </View>
-              <View>
+              <View style={styles.menuTextWrap}>
                 <Text style={styles.menuLabel}>{it.label}</Text>
                 <Text style={styles.menuSub}>{it.sub}</Text>
               </View>
@@ -137,6 +145,7 @@ const SavingsScreen = ({navigation}) => {
         </>
       )}
 
+      {/* ── MANAGE ── */}
       {view === 'manage' && (
         <>
           {loadingSavings ? (
@@ -172,6 +181,7 @@ const SavingsScreen = ({navigation}) => {
         </>
       )}
 
+      {/* ── ADD STEP 1 ── */}
       {view === 'add' && step === 1 && (
         <>
           <Text style={styles.emoji}>🐷</Text>
@@ -199,7 +209,7 @@ const SavingsScreen = ({navigation}) => {
           )}
 
           <Input
-            label="Amount (At least $1000)"
+            label="Amount (At least $1,000)"
             placeholder="Enter amount"
             value={amount}
             onChangeText={setAmount}
@@ -215,9 +225,11 @@ const SavingsScreen = ({navigation}) => {
         </>
       )}
 
+      {/* ── ADD STEP 2 ── */}
       {view === 'add' && step === 2 && (
         <>
           <Text style={styles.emoji}>🐷</Text>
+
           <View style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>
               Account{' '}
@@ -236,7 +248,7 @@ const SavingsScreen = ({navigation}) => {
           <Text style={styles.sectionLabel}>Verification code</Text>
           <View style={styles.otpRow}>
             <Input
-              placeholder="OTP"
+              placeholder="Enter OTP"
               value={otp}
               onChangeText={setOtp}
               style={styles.otpInput}
@@ -254,7 +266,7 @@ const SavingsScreen = ({navigation}) => {
           <Button
             label={loading ? 'Saving…' : 'Verify'}
             onPress={handleCreateSavings}
-            disabled={!otp || loading}
+            disabled={!otp || !amount || loading}
             loading={loading}
           />
         </>
@@ -284,6 +296,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuEmoji: {fontSize: 26},
+  menuTextWrap: {flex: 1},
   menuLabel: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
@@ -291,7 +304,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   menuSub: {fontSize: fontSize.sm, color: colors.textSecondary},
-  chevron: {fontSize: 22, color: colors.textMuted, marginLeft: 'auto'},
+  chevron: {fontSize: 22, color: colors.textMuted},
   emptyText: {
     fontSize: fontSize.sm,
     color: colors.textMuted,

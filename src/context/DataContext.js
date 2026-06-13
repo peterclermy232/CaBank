@@ -107,6 +107,8 @@ export function DataProvider({children}) {
         refreshMessages,
         // Setters exposed so individual screens can optimistically update
         setCards,
+        setAccounts,      // ← add this
+        setTransactions,  // ← add this
         setMessages,
         setBeneficiaries,
       }}>

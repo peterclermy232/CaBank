@@ -16,8 +16,11 @@ import {useAuth} from '../../context/AuthContext';
 import {useData} from '../../context/DataContext';
 import {colors, spacing, fontSize, fontWeight, borderRadius, shadows} from '../../theme';
 
+
 const QUICK_ACTIONS = [
   {id: 'accounts', label: 'Account\nand Card', icon: '💳', screen: 'Accounts'},
+  {id: 'deposit', label: 'Deposit', icon: '💰', screen: 'Deposit'},
+  {id: 'TopUp', label: 'TopUp', icon: '➕💰', screen: 'TopUp'},
   {id: 'transfer', label: 'Transfer', icon: '↗️', screen: 'Transfer'},
   {id: 'withdraw', label: 'Withdraw', icon: '💸', screen: 'Withdraw'},
   {id: 'prepaid', label: 'Mobile\nprepaid', icon: '📱', screen: 'Prepaid'},

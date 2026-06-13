@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import {Button, Input, ScreenWrapper, Avatar} from '../../components/common';
 import {useData} from '../../context/DataContext';
-import {transfersApi} from '../../api/services';
+import {transfersApi, otpApi} from '../../api/services';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
 
 const fmt = n =>
@@ -27,10 +27,10 @@ const TX_TYPES = [
 const TransferScreen = ({navigation}) => {
   const {cards: rawCards, beneficiaries} = useData();
 
-  // Normalise cards to UI shape
   const cards = rawCards.map(c => ({
     id: c.id,
     last4: c.last4,
+    holderName: c.holderName,
     balance: c.balance ?? 0,
   }));
 
@@ -41,10 +41,24 @@ const TransferScreen = ({navigation}) => {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
   const activeCard = selectedCard ?? cards[0];
+
+  // ── Real OTP request ──────────────────────────────────────────────────────
+  const handleGetOtp = async () => {
+    setOtpLoading(true);
+    try {
+      const result = await otpApi.request();
+      setOtp(result?.code ?? '');
+    } catch (err) {
+      Alert.alert('Failed to send OTP', err.message);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   const handleConfirm = async () => {
     if (!beneficiary || !amount || !activeCard) return;
@@ -106,7 +120,9 @@ const TransferScreen = ({navigation}) => {
                   styles.cardOption,
                   activeCard?.id === c.id && styles.cardOptionSelected,
                 ]}>
-                <Text style={styles.cardOptionNum}>VISA •••• •••• {c.last4}</Text>
+                <Text style={styles.cardOptionNum}>
+                  {c.holderName} · •••• {c.last4}
+                </Text>
                 <Text style={styles.cardOptionBal}>
                   Available balance: {fmt(c.balance)}
                 </Text>
@@ -235,9 +251,10 @@ const TransferScreen = ({navigation}) => {
               keyboardType="number-pad"
             />
             <Button
-              label="Get OTP"
+              label={otpLoading ? 'Sending…' : 'Get OTP'}
               variant="outline"
-              onPress={() => setOtp('6789')}
+              onPress={handleGetOtp}
+              disabled={otpLoading}
               style={styles.otpBtn}
             />
           </View>

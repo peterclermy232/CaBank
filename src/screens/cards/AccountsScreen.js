@@ -4,17 +4,26 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import {ScreenWrapper, Avatar, Button} from '../../components/common';
 import {BankCard} from '../../components/cards';
 import {useAuth} from '../../context/AuthContext';
 import {accountsApi, cardsApi} from '../../api/services';
-import {colors, spacing, fontSize, fontWeight, borderRadius, shadows} from '../../theme';
+import {normaliseCard} from '../../utils/normalise';
+import {
+  colors,
+  spacing,
+  fontSize,
+  fontWeight,
+  borderRadius,
+  shadows,
+} from '../../theme';
 
 const fmt = n =>
-  new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(n ?? 0);
+  new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(
+    n ?? 0,
+  );
 
 const AccountsScreen = ({navigation}) => {
   const {user} = useAuth();
@@ -30,7 +39,6 @@ const AccountsScreen = ({navigation}) => {
           accountsApi.list(),
           cardsApi.list(),
         ]);
-
         setAccounts(Array.isArray(accs) ? accs : accs?.data ?? []);
         setCards(Array.isArray(cds) ? cds : cds?.data ?? []);
       } catch (err) {
@@ -68,49 +76,90 @@ const AccountsScreen = ({navigation}) => {
         ))}
       </View>
 
+      {/* Account Tab */}
       {tab === 'account' && (
         <View>
           <View style={styles.profileRow}>
             <Avatar name={user?.name ?? ''} size={52} />
             <Text style={styles.profileName}>{user?.name ?? ''}</Text>
           </View>
-          {accounts.map(a => (
-            <View key={a.id} style={styles.accountCard}>
-              <Text style={styles.accountNumber}>
-                {a.accountNumber ?? a.number}
+
+          {accounts.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                You don't have any accounts yet.
               </Text>
-              <View style={styles.accountMeta}>
-                <Text style={styles.accountLabel}>
-                  Available balance{' '}
-                  <Text style={styles.accountBalance}>
-                    {fmt(a.balance ?? 0)}
-                  </Text>
-                </Text>
-                <Text style={styles.accountLabel}>
-                  Branch{' '}
-                  <Text style={styles.accountBranch}>{a.branch}</Text>
-                </Text>
-              </View>
+              <Button
+                label="Open New Account"
+                onPress={() => navigation.navigate('CreateAccount')}
+              />
             </View>
-          ))}
+          ) : (
+            <>
+              {accounts.map(a => (
+                <View key={a.id} style={styles.accountCard}>
+                  <Text style={styles.accountNumber}>
+                    {a.accountNumber ?? a.number}
+                  </Text>
+                  <View style={styles.accountMeta}>
+                    <Text style={styles.accountLabel}>
+                      Available balance{' '}
+                      <Text style={styles.accountBalance}>
+                        {fmt(a.balance ?? 0)}
+                      </Text>
+                    </Text>
+                    <Text style={styles.accountLabel}>
+                      Branch{' '}
+                      <Text style={styles.accountBranch}>{a.branch}</Text>
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <Button
+                label="Open New Account"
+                onPress={() => navigation.navigate('CreateAccount')}
+                style={{marginTop: spacing.md}}
+              />
+            </>
+          )}
         </View>
       )}
 
+      {/* Card Tab */}
       {tab === 'card' && (
         <View>
-          {cards.map(c => (
-            <TouchableOpacity
-              key={c.id}
-              onPress={() => navigation.navigate('CardDetail', {card: c})}
-              style={styles.cardWrap}>
-              <BankCard card={c} />
-            </TouchableOpacity>
-          ))}
-          <Button
-            label="Add card"
-            onPress={() => navigation.navigate('CardDetail')}
-            style={styles.addBtn}
-          />
+          {cards.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                You don't have any cards yet.
+              </Text>
+              <Button
+                label="Add Card"
+                onPress={() => navigation.navigate('CardDetail')}
+              />
+            </View>
+          ) : (
+            <>
+              {cards.map(c => {
+                const normCard = normaliseCard(c);
+                return (
+                  <TouchableOpacity
+                    key={normCard.id}
+                    onPress={() =>
+                      navigation.navigate('CardDetail', {card: c})
+                    }
+                    style={styles.cardWrap}>
+                    <BankCard card={normCard} />
+                  </TouchableOpacity>
+                );
+              })}
+              <Button
+                label="Add Card"
+                onPress={() => navigation.navigate('CardDetail')}
+                style={styles.addBtn}
+              />
+            </>
+          )}
         </View>
       )}
     </ScreenWrapper>
@@ -164,12 +213,25 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.sm,
   },
-  accountMeta: {flexDirection: 'row', justifyContent: 'space-between'},
+  accountMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   accountLabel: {fontSize: fontSize.sm, color: colors.textSecondary},
   accountBalance: {color: colors.success, fontWeight: fontWeight.bold},
   accountBranch: {color: colors.primary, fontWeight: fontWeight.semiBold},
   cardWrap: {marginBottom: spacing.md},
   addBtn: {marginTop: spacing.sm},
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: spacing.xl,
+    gap: spacing.md,
+  },
+  emptyText: {
+    fontSize: fontSize.base,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
 });
 
 export default AccountsScreen;

@@ -32,7 +32,10 @@ import SavingsScreen from '../screens/savings/SavingsScreen';
 import AccountsScreen from '../screens/cards/AccountsScreen';
 import CardDetailScreen from '../screens/cards/CardDetailScreen';
 import BeneficiaryScreen from '../screens/beneficiaries/BeneficiaryScreen';
-
+import AddBeneficiaryScreen from '../screens/beneficiaries/AddBeneficiaryScreen';
+import DepositScreen from '../screens/deposit/DepositScreen';
+import CreateAccountScreen from '../screens/account/CreateAccountScreen';
+import TopUpScreen from '../screens/topup/TopUpScreen';
 import {colors, fontSize, fontWeight} from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -94,7 +97,6 @@ const TabIcon = ({name, focused, badge = 0}) => (
 const MainTabs = () => {
   const {messages} = useData();
 
-  // Adjust this if your API uses a different property
   const unreadCount = (messages || []).filter(
     message => !message.read,
   ).length;
@@ -149,10 +151,13 @@ const AppNavigator = () => (
       {/* Feature screens */}
       <Stack.Screen name="Transfer" component={TransferScreen} />
       <Stack.Screen name="Bills" component={BillsScreen} />
+      <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+      <Stack.Screen name="Deposit" component={DepositScreen} />
       <Stack.Screen name="Withdraw" component={WithdrawScreen} />
       <Stack.Screen name="Savings" component={SavingsScreen} />
       <Stack.Screen name="Accounts" component={AccountsScreen} />
       <Stack.Screen name="CardDetail" component={CardDetailScreen} />
+      <Stack.Screen name="TopUp" component={TopUpScreen} />
       <Stack.Screen
         name="TransactionReport"
         component={TransactionReportScreen}
@@ -168,6 +173,10 @@ const AppNavigator = () => (
       <Stack.Screen
         name="Beneficiary"
         component={BeneficiaryScreen}
+      />
+      <Stack.Screen
+        name="AddBeneficiary"
+        component={AddBeneficiaryScreen}
       />
 
       {/* Settings screens */}
@@ -185,26 +194,11 @@ const AppNavigator = () => (
       />
 
       {/* Placeholder routes */}
-      <Stack.Screen
-        name="Prepaid"
-        component={WithdrawScreen}
-      />
-      <Stack.Screen
-        name="CreditCard"
-        component={BillsScreen}
-      />
-      <Stack.Screen
-        name="Exchange"
-        component={ExchangeRateScreen}
-      />
-      <Stack.Screen
-        name="Branch"
-        component={SearchScreen}
-      />
-      <Stack.Screen
-        name="InterestRate"
-        component={ExchangeRateScreen}
-      />
+      <Stack.Screen name="Prepaid" component={WithdrawScreen} />
+      <Stack.Screen name="CreditCard" component={BillsScreen} />
+      <Stack.Screen name="Exchange" component={ExchangeRateScreen} />
+      <Stack.Screen name="Branch" component={SearchScreen} />
+      <Stack.Screen name="InterestRate" component={ExchangeRateScreen} />
     </Stack.Navigator>
   </NavigationContainer>
 );

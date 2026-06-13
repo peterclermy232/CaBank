@@ -4,22 +4,23 @@ import {ScreenWrapper, TransactionRow} from '../../components/common';
 import {BankCard} from '../../components/cards';
 import {useData} from '../../context/DataContext';
 import {colors, spacing, fontSize, fontWeight, borderRadius} from '../../theme';
+import {normaliseCard} from '../../utils/normalise';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
 const BAR_HEIGHTS = [55, 38, 50, 88, 32, 65];
 
-const normaliseCard = c => ({
-  id: c.id,
-  holder: c.holderName,
-  brand: c.brand,
-  type: c.cardType,
-  number: `•••• •••• •••• ${c.last4}`,
-  last4: c.last4,
-  balance: c.balance ?? 0,
-  validFrom: c.validFrom,
-  goodThru: c.goodThru,
-  color: (c.color ?? 'PRIMARY').toLowerCase(),
-});
+// const normaliseCard = c => ({
+//   id: c.id,
+//   holder: c.holderName,
+//   brand: c.brand,
+//   type: c.cardType,
+//   number: `•••• •••• •••• ${c.last4}`,
+//   last4: c.last4,
+//   balance: c.balance ?? 0,
+//   validFrom: c.validFrom,
+//   goodThru: c.goodThru,
+//   color: (c.color ?? 'PRIMARY').toLowerCase(),
+// });
 
 const normaliseTransaction = tx => ({
   id: tx.id,
@@ -63,7 +64,7 @@ const TransactionReportScreen = ({navigation}) => {
               onPress={() =>
                 setSelectedCardIdx(i => (i + 1) % cards.length)
               }>
-              <BankCard card={cards[selectedCardIdx]} />
+              <BankCard card={normaliseCard(cards[selectedCardIdx])} />
             </TouchableOpacity>
           )}
 

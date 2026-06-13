@@ -7,9 +7,10 @@ const fmt = n =>
 
 const BankCard = ({card, onPress, selected = false, compact = false}) => {
   const isGold = card.color?.toUpperCase() === 'GOLD';
-  const bg = isGold
-    ? ['#E6A817', '#F5C842']
-    : [colors.primaryDark, colors.primaryLight];
+  const isCredit = card.cardType?.toUpperCase() === 'CREDIT';
+  const bg = isGold ? '#E6A817' : colors.primaryDark;
+
+  const hasBalance = (card.balance ?? 0) > 0;
 
   return (
     <TouchableOpacity
@@ -19,9 +20,7 @@ const BankCard = ({card, onPress, selected = false, compact = false}) => {
         styles.card,
         compact && styles.compact,
         selected && styles.selected,
-        {
-          backgroundColor: bg[0],
-        },
+        {backgroundColor: bg},
       ]}>
       {/* Decorative circles */}
       <View style={styles.circle1} />
@@ -30,8 +29,31 @@ const BankCard = ({card, onPress, selected = false, compact = false}) => {
       <Text style={styles.type}>{card.cardType}</Text>
       <Text style={styles.holder}>{card.holderName}</Text>
       <Text style={styles.number}>•••• •••• •••• {card.last4}</Text>
+
       <View style={styles.footer}>
-        <Text style={styles.balance}>{fmt(card.balance)}</Text>
+        <View>
+          {isCredit ? (
+            <>
+              <Text style={styles.balLabel}>
+                {hasBalance ? 'Used' : 'Available limit'}
+              </Text>
+              <Text style={styles.balance}>
+                {hasBalance
+                  ? `${fmt(card.balance)} / ${fmt(card.creditLimit)}`
+                  : fmt(card.creditLimit)}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.balLabel}>
+                {hasBalance ? 'Balance' : 'No balance'}
+              </Text>
+              <Text style={styles.balance}>
+                {hasBalance ? fmt(card.balance) : '—'}
+              </Text>
+            </>
+          )}
+        </View>
         <Text style={styles.brand}>{card.brand}</Text>
       </View>
     </TouchableOpacity>
@@ -93,8 +115,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
   },
+  balLabel: {
+    fontSize: fontSize.xs,
+    color: 'rgba(255,255,255,0.65)',
+    marginBottom: 2,
+  },
   balance: {
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize.xl,
     fontWeight: fontWeight.extraBold,
     color: '#fff',
   },

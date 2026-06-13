@@ -55,6 +55,12 @@ export const accountsApi = {
 
   /** @param {string} id */
   get: id => api.get(`/accounts/${id}`),
+
+  /**
+   * @param {{ branch: string, type: string, initialDeposit?: number }} body
+   * @returns {{ id, accountNumber, balance, branch, type, active }}
+   */
+  create: body => api.post('/accounts', body),
 };
 
 // ─── Cards ────────────────────────────────────────────────────────────────────
@@ -156,4 +162,18 @@ export const beneficiariesApi = {
 export const otpApi = {
   request: () => api.post('/otp/request', {}),
   verify: (code) => api.post('/otp/verify', {code}),
+};
+// ─── Deposits ────────────────────────────────────────────────────────────────
+export const depositsApi = {
+  /**
+   * @param {{ accountNumber: string, amount: number, note?: string, otpCode: string }} body
+   */
+  create: body => api.post('/deposits', body),
+};
+
+export const topUpApi = {
+  /**
+   * @param {{ cardId: string, amount: number }} data
+   */
+  topUp: (data) => api.post('/topup', data),
 };

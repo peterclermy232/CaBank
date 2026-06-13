@@ -26,7 +26,7 @@ const TX_TYPES = [
 
 const TransferScreen = ({navigation}) => {
   const toast = useToast();
-  const {cards: rawCards, beneficiaries} = useData();
+  const {cards: rawCards, beneficiaries, setCards, refresh} = useData();
 
   const cards = rawCards.map(c => ({
     id: c.id,
@@ -45,6 +45,7 @@ const TransferScreen = ({navigation}) => {
   const [otpLoading, setOtpLoading]     = useState(false);
   const [loading, setLoading]           = useState(false);
   const [done, setDone]                 = useState(false);
+  const [transferResult, setTransferResult] = useState(null);
 
   const activeCard = selectedCard ?? cards[0];
 
@@ -65,7 +66,7 @@ const TransferScreen = ({navigation}) => {
     if (!beneficiary || !amount || !activeCard || !otp) return;
     setLoading(true);
     try {
-      await transfersApi.create({
+      const result = await transfersApi.create({
         fromCardLast4: activeCard.last4,
         toAccountNumber: beneficiary.accountNumber ?? beneficiary.number ?? '',
         beneficiaryName: beneficiary.name,
@@ -73,6 +74,33 @@ const TransferScreen = ({navigation}) => {
         note: note || undefined,
         otpCode: otp,
       });
+
+      // Update the sender's card balance in context if the backend returned it
+      if (result?.newCardBalance != null) {
+        setCards(prev =>
+          prev.map(c =>
+            c.id === activeCard.id
+              ? {...c, balance: result.newCardBalance}
+              : c,
+          ),
+        );
+      } else {
+        // Fallback: optimistically deduct amount + $10 fee locally
+        const fee = 10;
+        setCards(prev =>
+          prev.map(c =>
+            c.id === activeCard.id
+              ? {...c, balance: c.balance - parseFloat(amount) - fee}
+              : c,
+          ),
+        );
+      }
+
+      // Refresh all data so recipient's account balance is also current
+      // (matters if the logged-in user is also the recipient, or for next login)
+      refresh().catch(() => {});
+
+      setTransferResult(result);
       setDone(true);
     } catch (err) {
       Alert.alert('Transfer failed', err.message);
@@ -82,6 +110,11 @@ const TransferScreen = ({navigation}) => {
   };
 
   if (done) {
+    const fee = 10;
+    const newBalance =
+      transferResult?.newCardBalance ??
+      (activeCard?.balance - parseFloat(amount) - fee);
+
     return (
       <ScreenWrapper title="Confirm" onBack={() => navigation.goBack()}>
         <View style={styles.successContainer}>
@@ -89,15 +122,27 @@ const TransferScreen = ({navigation}) => {
           <Text style={styles.successTitle}>Transfer successful!</Text>
           <Text style={styles.successDesc}>
             You transferred{' '}
-            <Text style={styles.bold}>
-              {fmt(parseFloat(amount) || 0)}
-            </Text>{' '}
-            to{' '}
-            <Text style={styles.bold}>
-              {beneficiary?.name || 'recipient'}
-            </Text>
+            <Text style={styles.bold}>{fmt(parseFloat(amount) || 0)}</Text> to{' '}
+            <Text style={styles.bold}>{beneficiary?.name || 'recipient'}</Text>
           </Text>
-          <Button label="Done" onPress={() => navigation.goBack()} />
+
+          {/* Show the sender's updated card balance */}
+          <View style={styles.balanceChip}>
+            <Text style={styles.balanceLabel}>
+              Card •••• {activeCard?.last4} new balance
+            </Text>
+            <Text style={styles.balanceValue}>{fmt(newBalance)}</Text>
+          </View>
+
+          <Text style={styles.feeNote}>
+            Transaction fee of $10.00 was included.
+          </Text>
+
+          <Button
+            label="Done"
+            onPress={() => navigation.goBack()}
+            style={{marginTop: spacing.lg}}
+          />
         </View>
       </ScreenWrapper>
     );
@@ -208,6 +253,15 @@ const TransferScreen = ({navigation}) => {
             value={note}
             onChangeText={setNote}
           />
+
+          {/* Fee notice */}
+          <View style={styles.feeCard}>
+            <Icon name="information-outline" size={16} color={colors.primary} />
+            <Text style={styles.feeCardText}>
+              A $10.00 transaction fee will be deducted from your card in addition to the transfer amount.
+            </Text>
+          </View>
+
           <Button
             label="Continue"
             onPress={() => setStep(2)}
@@ -220,17 +274,26 @@ const TransferScreen = ({navigation}) => {
         <View>
           <Text style={styles.sectionLabel}>Confirm transaction</Text>
           {[
-            ['From',           `•••• •••• ${activeCard?.last4 ?? '????'}`],
-            ['To',             beneficiary?.name || ''],
-            ['Account number', beneficiary?.accountNumber ?? beneficiary?.number ?? ''],
-            ['Transaction fee','$10'],
-            ['Content',        note || '—'],
-            ['Amount',         fmt(parseFloat(amount) || 0)],
+            ['From',            `•••• •••• ${activeCard?.last4 ?? '????'}`],
+            ['To',              beneficiary?.name || ''],
+            ['Account number',  beneficiary?.accountNumber ?? beneficiary?.number ?? ''],
+            ['Amount',          fmt(parseFloat(amount) || 0)],
+            ['Transaction fee', '$10.00'],
+            ['Total deducted',  fmt((parseFloat(amount) || 0) + 10)],
+            ['Content',         note || '—'],
           ].map(([k, v]) => (
             <View key={k} style={styles.confirmRow}>
               <Text style={styles.confirmKey}>{k}</Text>
-              <View style={styles.confirmVal}>
-                <Text style={styles.confirmValText}>{v}</Text>
+              <View style={[
+                styles.confirmVal,
+                k === 'Total deducted' && styles.confirmValHighlight,
+              ]}>
+                <Text style={[
+                  styles.confirmValText,
+                  k === 'Total deducted' && styles.confirmValTextHighlight,
+                ]}>
+                  {v}
+                </Text>
               </View>
             </View>
           ))}
@@ -313,6 +376,23 @@ const styles = StyleSheet.create({
   benItem: {alignItems: 'center', marginRight: spacing.lg, gap: spacing.xs},
   benAvatarSelected: {borderWidth: 3, borderColor: colors.primaryDark},
   benName: {fontSize: fontSize.xs, color: colors.textSecondary},
+  feeCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: `${colors.primary}10`,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  feeCardText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    lineHeight: 18,
+  },
   confirmRow: {marginBottom: spacing.sm},
   confirmKey: {fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4},
   confirmVal: {
@@ -320,7 +400,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     padding: spacing.md,
   },
+  confirmValHighlight: {
+    backgroundColor: `${colors.error}10`,
+  },
   confirmValText: {fontSize: fontSize.base, fontWeight: fontWeight.semiBold, color: colors.text},
+  confirmValTextHighlight: {color: colors.error},
   otpRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -346,10 +430,33 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     lineHeight: 22,
   },
   bold: {fontWeight: fontWeight.bold, color: colors.text},
+  balanceChip: {
+    backgroundColor: `${colors.success}15`,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    minWidth: 220,
+  },
+  balanceLabel: {
+    fontSize: fontSize.xs,
+    color: colors.success,
+    marginBottom: 4,
+  },
+  balanceValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extraBold,
+    color: colors.success,
+  },
+  feeNote: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
 });
 
 export default TransferScreen;
